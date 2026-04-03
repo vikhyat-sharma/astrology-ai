@@ -128,6 +128,48 @@ curl -X POST http://localhost:8080/api/v1/astrology/birth-chart \
 
 ## Development
 
+### Makefile Commands
+
+This project includes a comprehensive Makefile for common development tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Testing
+make test              # Run all tests
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-e2e          # Run end-to-end tests only
+make test-coverage     # Run tests with coverage report
+
+# Development
+make run               # Run the application
+make build             # Build the application
+make clean             # Clean build artifacts
+make fmt               # Format Go code
+make vet               # Run go vet
+make lint              # Run golangci-lint
+
+# Docker
+make docker-build      # Build Docker image
+make docker-run        # Run Docker container
+make docker-compose-up # Start services with docker-compose
+
+# Dependencies
+make deps              # Download dependencies
+make deps-update       # Update dependencies
+make tidy              # Tidy and verify module dependencies
+
+# Setup
+make setup             # Setup development environment
+make install-tools     # Install development tools
+
+# Quality checks
+make check             # Run format, vet, lint and tests
+make ci                # Run CI pipeline locally
+```
+
 ### Running Tests
 ```bash
 go test ./...

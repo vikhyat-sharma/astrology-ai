@@ -10,14 +10,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
+	"github.com/vikhyat-sharma/astrology-ai/internal/interfaces"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
 )
 
 // AstrologyService handles astrology business logic
 type AstrologyService struct {
-	astrologyRepo *repositories.AstrologyRepository
+	astrologyRepo interfaces.AstrologyRepositoryInterface
 	ollamaURL     string
 	ollamaModel   string
+	httpClient    interfaces.HTTPClientInterface
 }
 
 // NewAstrologyService creates a new astrology service
@@ -26,6 +28,17 @@ func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollama
 		astrologyRepo: astrologyRepo,
 		ollamaURL:     ollamaURL,
 		ollamaModel:   ollamaModel,
+		httpClient:    &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
+// NewAstrologyServiceWithClient creates a new astrology service with custom HTTP client
+func NewAstrologyServiceWithClient(astrologyRepo interfaces.AstrologyRepositoryInterface, ollamaURL, ollamaModel string, httpClient interfaces.HTTPClientInterface) *AstrologyService {
+	return &AstrologyService{
+		astrologyRepo: astrologyRepo,
+		ollamaURL:     ollamaURL,
+		ollamaModel:   ollamaModel,
+		httpClient:    httpClient,
 	}
 }
 
@@ -153,7 +166,7 @@ func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) 
 	}
 
 	endpoint := fmt.Sprintf("%s/api/predictions", s.ollamaURL)
-	resp, err := http.Post(endpoint, "application/json", bytes.NewReader(bodyBytes))
+	resp, err := s.httpClient.Post(endpoint, "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", err
 	}

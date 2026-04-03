@@ -36,11 +36,78 @@ func InitDB(databaseURL string) *gorm.DB {
 	// Auto migrate the schema - this creates tables if they don't exist
 	log.Println("Running database migrations for tables: users, birth_charts, horoscopes")
 	if err := db.AutoMigrate(&User{}, &BirthChart{}, &Horoscope{}); err != nil {
-		log.Fatal("Failed to migrate database:", err)
+		log.Printf("AutoMigrate failed: %v", err)
+		log.Println("Attempting manual table creation...")
+
+		// Try to create tables manually if AutoMigrate fails
+		if err := createTablesManually(db); err != nil {
+			log.Fatal("Failed to create tables manually:", err)
+		}
 	}
 
 	log.Println("Database connected and migrated successfully")
 	return db
+}
+
+// createTablesManually creates tables manually if AutoMigrate fails
+func createTablesManually(db *gorm.DB) error {
+	// Create users table
+	if err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email TEXT NOT NULL UNIQUE,
+			password TEXT NOT NULL,
+			name TEXT,
+			birth_date TIMESTAMP WITH TIME ZONE,
+			birth_time TEXT,
+			birth_place TEXT,
+			latitude NUMERIC,
+			longitude NUMERIC,
+			timezone TEXT,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`).Error; err != nil {
+		return err
+	}
+
+	// Create birth_charts table
+	if err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS birth_charts (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID NOT NULL REFERENCES users(id),
+			sun_sign TEXT,
+			moon_sign TEXT,
+			rising_sign TEXT,
+			planets JSONB,
+			houses JSONB,
+			aspects JSONB,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`).Error; err != nil {
+		return err
+	}
+
+	// Create horoscopes table
+	if err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS horoscopes (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			sign TEXT NOT NULL,
+			type TEXT NOT NULL,
+			date DATE NOT NULL,
+			content TEXT,
+			love_rating INTEGER,
+			money_rating INTEGER,
+			health_rating INTEGER,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // extractDatabaseName extracts the database name from a PostgreSQL connection string
