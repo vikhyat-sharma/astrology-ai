@@ -14,7 +14,9 @@ internal/
 ├── config/                 # Configuration management
 ├── database/               # Database connection and migrations
 ├── handlers/               # HTTP request handlers
+├── interfaces/             # Interface definitions for dependency injection
 ├── middleware/             # HTTP middleware
+├── mocks/                  # Mock implementations for testing
 ├── models/                 # Data models
 ├── repositories/           # Data access layer
 └── services/               # Business logic layer
@@ -26,14 +28,16 @@ pkg/                        # Public libraries and utilities
 
 - **User Management**: Registration, authentication, and profile management
 - **Birth Chart Calculation**: Generate astrological birth charts
-- **Daily Horoscopes**: AI-generated daily horoscopes for zodiac signs
+- **Daily Horoscopes**: AI-generated daily horoscopes for zodiac signs (with Ollama integration)
 - **Compatibility Analysis**: Check compatibility between birth charts
 - **JWT Authentication**: Secure API endpoints with JWT tokens
-- **PostgreSQL Database**: Robust data persistence with GORM
+- **PostgreSQL Database**: Robust data persistence with automatic table creation
+- **Comprehensive Testing**: Unit tests with mocks, integration tests, and end-to-end tests
+- **Clean Architecture**: Interface-based design with dependency injection
 
 ## Prerequisites
 
-- Go 1.21 or later
+- Go 1.23 or later
 - PostgreSQL database
 - Git
 
@@ -53,15 +57,24 @@ go mod download
 3. Set up environment variables:
 Create a `.env` file in the root directory:
 ```env
-DATABASE_URL=postgres://user:password@localhost/astrology_ai?sslmode=disable
+DATABASE_URL=postgres://postgres:password@localhost:5432/astrology_ai?sslmode=disable
 JWT_SECRET=your-secret-key
 PORT=8080
 ENVIRONMENT=development
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama2
 ```
 
 4. Set up the database:
+The application will automatically create the database and tables on startup. Ensure PostgreSQL is running and accessible.
+
+For local development, you can use Docker:
 ```bash
-createdb astrology_ai
+# Start PostgreSQL with Docker
+docker run --name postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=astrology_ai -p 5432:5432 -d postgres:15-alpine
+
+# Or use docker-compose
+docker-compose up -d db
 ```
 
 5. Run the application:
@@ -82,7 +95,7 @@ go run cmd/main.go
 ### Astrology (Protected)
 - `POST /api/v1/astrology/birth-chart` - Create birth chart
 - `GET /api/v1/astrology/birth-chart/:id` - Get birth chart
-- `GET /api/v1/astrology/horoscope/daily?sign=Leo` - Get daily horoscope
+- `GET /api/v1/astrology/horoscope/daily?sign=Leo` - Get AI-generated daily horoscope
 - `POST /api/v1/astrology/compatibility` - Check compatibility
 
 ### Health Check
@@ -124,6 +137,12 @@ curl -X POST http://localhost:8080/api/v1/astrology/birth-chart \
     "longitude": -74.0060,
     "timezone": "America/New_York"
   }'
+```
+
+### Get Daily Horoscope (requires Bearer token)
+```bash
+curl -X GET "http://localhost:8080/api/v1/astrology/horoscope/daily?sign=Leo" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ## Development
@@ -172,8 +191,27 @@ make ci                # Run CI pipeline locally
 
 ### Running Tests
 ```bash
+# Run all tests
 go test ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Run specific test types
+go test ./internal/services/...     # Unit tests with mocks
+go test ./internal/services/*integration_test.go  # Integration tests
+go test ./internal/e2e/...          # End-to-end tests
 ```
+
+### Testing Architecture
+
+The project includes a comprehensive testing suite with three levels:
+
+- **Unit Tests**: Test individual functions and methods using mock dependencies
+- **Integration Tests**: Test component interactions with SQLite in-memory database
+- **End-to-End Tests**: Test complete API workflows with real HTTP requests
+
+Mock implementations are provided for external dependencies like HTTP clients and repositories, enabling fast and reliable unit testing.
 
 ### Building
 ```bash
@@ -183,19 +221,24 @@ go build -o bin/astrology-ai cmd/main.go
 ### Code Organization
 
 - **Handlers**: Handle HTTP requests and responses, input validation
-- **Services**: Contain business logic, orchestrate data operations
+- **Services**: Contain business logic, orchestrate data operations with dependency injection
 - **Repositories**: Handle data persistence and retrieval
 - **Models**: Define data structures and database schemas
+- **Interfaces**: Define contracts for dependency injection and mocking
+- **Mocks**: Provide mock implementations for comprehensive testing
 - **Middleware**: Cross-cutting concerns like authentication, logging, CORS
 - **Config**: Centralized configuration management
+- **Database**: Database connection and automatic schema management
 
 ## Database Schema
 
-The application uses the following main entities:
+The application uses the following main entities (tables are created automatically on startup):
 
 - **Users**: User accounts with authentication info
-- **BirthCharts**: Astrological birth chart data
-- **Horoscopes**: Daily/weekly horoscopes by zodiac sign
+- **BirthCharts**: Astrological birth chart data with planetary positions
+- **Horoscopes**: Daily/weekly horoscopes by zodiac sign with AI-generated content
+
+Database migrations are handled automatically with fallback to manual SQL table creation for reliability.
 
 ## Security
 
