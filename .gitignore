@@ -10,23 +10,28 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-
-# Dependency directories (uncomment if using go mod)
-# vendor/
+*.html
 
 # Go workspace file
 go.work
+go.work.sum
+
+# Dependency directories
+vendor/
 
 # Build output
 bin/
 dist/
 build/
+target/
 
 # Environment variables
 .env
 .env.local
 .env.production
 .env.staging
+.env.*.local
+.env.test
 
 # Logs
 *.log
@@ -42,12 +47,69 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 *.cover
+*.coverprofile
+coverage.html
+coverage.xml
 
 # nyc test coverage
 .nyc_output
 
 # Dependency directories
 node_modules/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.parcel-cache
+
+# Go specific
+# Go coverage files
+*.coverprofile
+coverage.html
+coverage.xml
+
+# Air live reloading
+tmp/
+temp/
+
+# Local development binaries
+debug
+debug.test
+astrology-ai
+
+# Ollama models (if downloaded locally)
+ollama/
+models/
+
+# API keys and secrets
+*.key
+*.pem
+secrets/
 
 # Optional npm cache directory
 .npm
@@ -60,9 +122,6 @@ node_modules/
 
 # Yarn Integrity file
 .yarn-integrity
-
-# dotenv environment variables file
-.env.test
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -96,6 +155,45 @@ temp/
 .idea
 *.swp
 *.swo
+*~
+
+# Local development
+*.local
+
+# Compiled binaries in scripts directory
+scripts/setup_db
+
+# Air live reloading configuration
+.air.toml
+
+# Go module proxy cache
+/pkg/
+
+# Local development
+*.local
+
+# Profiling files
+*.pprof
+*.prof
+
+# Test results
+test-results/
+*.xml
+
+# Docker volumes
+docker-volumes/
+
+# Kubernetes
+*.yaml.bak
+k8s/
+
+# CI/CD
+.github/workflows/*.log
+
+# Backup files
+*.bak
+*.backup
+*~
 *~
 
 # OS generated files
