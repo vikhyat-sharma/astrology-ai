@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vikhyat-sharma/astrology-ai/internal/config"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/handlers"
 	"github.com/vikhyat-sharma/astrology-ai/internal/middleware"
@@ -47,13 +48,13 @@ func main() {
 	router.Use(middleware.ErrorHandler())
 
 	// API routes
-	api := router.Group("/api/v1")
+	api := router.Group(constants.APIV1Prefix)
 	{
 		// Public routes
-		auth := api.Group("/auth")
+		auth := api.Group(constants.AuthPrefix)
 		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
+			auth.POST(constants.RegisterEndpoint, authHandler.Register)
+			auth.POST(constants.LoginEndpoint, authHandler.Login)
 		}
 
 		// Protected routes
@@ -61,27 +62,27 @@ func main() {
 		protected.Use(middleware.AuthRequired())
 		{
 			// User routes
-			user := protected.Group("/user")
+			user := protected.Group(constants.UserPrefix)
 			{
-				user.GET("/profile", authHandler.GetProfile)
-				user.PUT("/profile", authHandler.UpdateProfile)
-				user.POST("/birth-info", authHandler.UpdateBirthInfo)
+				user.GET(constants.ProfileEndpoint, authHandler.GetProfile)
+				user.PUT(constants.ProfileEndpoint, authHandler.UpdateProfile)
+				user.POST(constants.BirthInfoEndpoint, authHandler.UpdateBirthInfo)
 			}
 
 			// Astrology routes
-			astro := protected.Group("/astrology")
+			astro := protected.Group(constants.AstrologyPrefix)
 			{
-				astro.POST("/birth-chart", astrologyHandler.CreateBirthChart)
-				astro.GET("/birth-chart/:id", astrologyHandler.GetBirthChart)
-				astro.GET("/horoscope/daily", astrologyHandler.GetDailyHoroscope)
-				astro.POST("/compatibility", astrologyHandler.CheckCompatibility)
+				astro.POST(constants.BirthChartEndpoint, astrologyHandler.CreateBirthChart)
+				astro.GET(constants.BirthChartEndpoint+"/:id", astrologyHandler.GetBirthChart)
+				astro.GET(constants.DailyHoroscopeEndpoint, astrologyHandler.GetDailyHoroscope)
+				astro.POST(constants.CompatibilityEndpoint, astrologyHandler.CheckCompatibility)
 			}
 		}
 	}
 
 	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+	router.GET(constants.HealthEndpoint, func(c *gin.Context) {
+		c.JSON(constants.StatusOK, gin.H{"status": "ok"})
 	})
 
 	// Set trusted proxies for security

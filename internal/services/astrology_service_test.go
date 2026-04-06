@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/mocks"
 )
@@ -19,17 +20,17 @@ func TestCalculateSunSign(t *testing.T) {
 		date string
 		want string
 	}{
-		{"AriesStart", "2023-03-21", "Aries"},
-		{"AriesEnd", "2023-04-19", "Aries"},
-		{"TaurusStart", "2023-04-20", "Taurus"},
-		{"CapricornEnd", "2023-01-19", "Capricorn"},
+		{"AriesStart", "2023-03-21", constants.Aries},
+		{"AriesEnd", "2023-04-19", constants.Aries},
+		{"TaurusStart", "2023-04-20", constants.Taurus},
+		{"CapricornEnd", "2023-01-19", constants.Capricorn},
 	}
 
 	service := &AstrologyService{}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, err := time.Parse("2006-01-02", tt.date)
+			parsed, err := time.Parse(constants.DateFormat, tt.date)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -44,10 +45,10 @@ func TestGetSignElement(t *testing.T) {
 	service := &AstrologyService{}
 
 	signTests := map[string]string{
-		"Aries":  "fiery",
-		"Virgo":  "earthy",
-		"Gemini": "airy",
-		"Pisces": "watery",
+		constants.Aries:  constants.ElementFiery,
+		constants.Virgo:  constants.ElementEarthy,
+		constants.Gemini: constants.ElementAiry,
+		constants.Pisces: constants.ElementWatery,
 	}
 
 	for sign, want := range signTests {
@@ -61,14 +62,14 @@ func TestGenerateDailyHoroscopeWithMock(t *testing.T) {
 	mockHTTPClient := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: 200,
+				StatusCode: constants.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "AI generated horoscope content"}`))),
 			}, nil
 		},
 	}
 
 	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
-	out := service.generateDailyHoroscope("Leo")
+	out := service.generateDailyHoroscope(constants.Leo)
 
 	if out != "AI generated horoscope content" {
 		t.Fatalf("expected AI content, got %q", out)
@@ -83,7 +84,7 @@ func TestGenerateDailyHoroscopeFallback(t *testing.T) {
 	}
 
 	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
-	out := service.generateDailyHoroscope("Leo")
+	out := service.generateDailyHoroscope(constants.Leo)
 	if out == "" {
 		t.Fatal("expected non-empty fallback horoscope")
 	}
@@ -91,8 +92,8 @@ func TestGenerateDailyHoroscopeFallback(t *testing.T) {
 
 func TestCalculateCompatibility(t *testing.T) {
 	service := &AstrologyService{}
-	chart1 := &database.BirthChart{SunSign: "Aries"}
-	chart2 := &database.BirthChart{SunSign: "Libra"}
+	chart1 := &database.BirthChart{SunSign: constants.Aries}
+	chart2 := &database.BirthChart{SunSign: constants.Libra}
 
 	result := service.calculateCompatibility(chart1, chart2)
 	if result["score"].(int) != 75 {
@@ -144,7 +145,7 @@ func TestGetBirthChart(t *testing.T) {
 	expectedChart := &database.BirthChart{
 		ID:      uuid.New(),
 		UserID:  uuid.New(),
-		SunSign: "Leo",
+		SunSign: constants.Leo,
 	}
 
 	mockRepo := &mocks.MockAstrologyRepository{
@@ -182,7 +183,7 @@ func TestGetDailyHoroscope(t *testing.T) {
 	mockHTTPClient := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: 200,
+				StatusCode: constants.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Mock AI horoscope"}`))),
 			}, nil
 		},
@@ -190,16 +191,16 @@ func TestGetDailyHoroscope(t *testing.T) {
 
 	service := NewAstrologyServiceWithClient(mockRepo, "http://localhost:11434", "llama2", mockHTTPClient)
 
-	horoscope, err := service.GetDailyHoroscope("Gemini")
+	horoscope, err := service.GetDailyHoroscope(constants.Gemini)
 	if err != nil {
 		t.Fatalf("GetDailyHoroscope failed: %v", err)
 	}
 
-	if horoscope.Sign != "Gemini" {
+	if horoscope.Sign != constants.Gemini {
 		t.Fatalf("horoscope.Sign = %s, want Gemini", horoscope.Sign)
 	}
 
-	if horoscope.Type != "daily" {
+	if horoscope.Type != constants.HoroscopeTypeDaily {
 		t.Fatalf("horoscope.Type = %s, want daily", horoscope.Type)
 	}
 }
@@ -211,13 +212,13 @@ func TestCheckCompatibility(t *testing.T) {
 	chart1 := &database.BirthChart{
 		ID:      chart1ID,
 		UserID:  uuid.New(),
-		SunSign: "Aries",
+		SunSign: constants.Aries,
 	}
 
 	chart2 := &database.BirthChart{
 		ID:      chart2ID,
 		UserID:  uuid.New(),
-		SunSign: "Libra",
+		SunSign: constants.Libra,
 	}
 
 	mockRepo := &mocks.MockAstrologyRepository{
@@ -248,7 +249,7 @@ func TestFetchOllamaPredictionSuccess(t *testing.T) {
 	mockHTTPClient := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: 200,
+				StatusCode: constants.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Test prediction"}`))),
 			}, nil
 		},

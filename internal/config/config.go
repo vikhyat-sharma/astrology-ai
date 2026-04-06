@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 )
 
 // Config holds all configuration for the application
@@ -26,19 +27,19 @@ func Load() *Config {
 	}
 
 	config := &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/astrology_ai?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
-		Port:        getEnv("PORT", "8080"),
-		Environment: getEnv("ENVIRONMENT", "development"),
-		OllamaURL:   getEnv("OLLAMA_URL", "http://127.0.0.1:11434"),
-		OllamaModel: getEnv("OLLAMA_MODEL", "llama3"),
+		DatabaseURL: getEnv("DATABASE_URL", constants.DefaultDatabaseURL),
+		JWTSecret:   getEnv("JWT_SECRET", constants.DefaultJWTSecret),
+		Port:        getEnv("PORT", constants.DefaultPort),
+		Environment: getEnv("ENVIRONMENT", constants.DefaultEnvironment),
+		OllamaURL:   getEnv("OLLAMA_URL", constants.DefaultOllamaURL),
+		OllamaModel: getEnv("OLLAMA_MODEL", constants.DefaultOllamaModel),
 	}
 
 	// Warn about default secrets in development
-	if config.Environment == "development" && config.JWTSecret == "your-secret-key" {
+	if config.Environment == constants.DefaultEnvironment && config.JWTSecret == constants.DefaultJWTSecret {
 		log.Println("WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable for security.")
 	}
-	if config.Environment == "development" && strings.Contains(config.DatabaseURL, "password") {
+	if config.Environment == constants.DefaultEnvironment && strings.Contains(config.DatabaseURL, "password") {
 		log.Println("WARNING: Using default database password. Set DATABASE_URL environment variable for security.")
 	}
 

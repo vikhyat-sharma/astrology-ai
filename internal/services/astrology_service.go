@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/interfaces"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
@@ -28,7 +29,7 @@ func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollama
 		astrologyRepo: astrologyRepo,
 		ollamaURL:     ollamaURL,
 		ollamaModel:   ollamaModel,
-		httpClient:    &http.Client{Timeout: 30 * time.Second},
+		httpClient:    &http.Client{Timeout: constants.OllamaTimeoutSeconds * time.Second},
 	}
 }
 
@@ -127,7 +128,7 @@ func (s *AstrologyService) GetUserBirthCharts(userID uuid.UUID) ([]*database.Bir
 // GetDailyHoroscope gets the daily horoscope for a sign
 func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, error) {
 	// Check if today's horoscope exists
-	horoscope, err := s.astrologyRepo.GetHoroscope(sign, "daily")
+	horoscope, err := s.astrologyRepo.GetHoroscope(sign, constants.HoroscopeTypeDaily)
 	if err == nil {
 		return horoscope, nil
 	}
@@ -135,12 +136,12 @@ func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, 
 	// If not found, generate a new one (in a real app, this might come from an AI service)
 	horoscope = &database.Horoscope{
 		Sign:         sign,
-		Type:         "daily",
+		Type:         constants.HoroscopeTypeDaily,
 		Date:         time.Now().Truncate(24 * time.Hour),
 		Content:      s.generateDailyHoroscope(sign),
-		LoveRating:   7,
-		MoneyRating:  6,
-		HealthRating: 8,
+		LoveRating:   constants.DefaultLoveRating,
+		MoneyRating:  constants.DefaultMoneyRating,
+		HealthRating: constants.DefaultHealthRating,
 	}
 
 	if err := s.astrologyRepo.CreateHoroscope(horoscope); err != nil {
@@ -165,14 +166,14 @@ func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) 
 		return "", err
 	}
 
-	endpoint := fmt.Sprintf("%s/api/predictions", s.ollamaURL)
-	resp, err := s.httpClient.Post(endpoint, "application/json", bytes.NewReader(bodyBytes))
+	endpoint := fmt.Sprintf("%s%s", s.ollamaURL, constants.OllamaPredictionsEndpoint)
+	resp, err := s.httpClient.Post(endpoint, constants.ContentTypeJSON, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != constants.StatusOK && resp.StatusCode != constants.StatusCreated {
 		respBytes, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("ollama error: %d %s", resp.StatusCode, string(respBytes))
 	}
@@ -245,64 +246,64 @@ func (s *AstrologyService) calculateSunSign(birthDate time.Time) string {
 	switch month {
 	case 1: // January
 		if day <= 19 {
-			return "Capricorn"
+			return constants.Capricorn
 		}
-		return "Aquarius"
+		return constants.Aquarius
 	case 2: // February
 		if day <= 18 {
-			return "Aquarius"
+			return constants.Aquarius
 		}
-		return "Pisces"
+		return constants.Pisces
 	case 3: // March
 		if day <= 20 {
-			return "Pisces"
+			return constants.Pisces
 		}
-		return "Aries"
+		return constants.Aries
 	case 4: // April
 		if day <= 19 {
-			return "Aries"
+			return constants.Aries
 		}
-		return "Taurus"
+		return constants.Taurus
 	case 5: // May
 		if day <= 20 {
-			return "Taurus"
+			return constants.Taurus
 		}
-		return "Gemini"
+		return constants.Gemini
 	case 6: // June
 		if day <= 20 {
-			return "Gemini"
+			return constants.Gemini
 		}
-		return "Cancer"
+		return constants.Cancer
 	case 7: // July
 		if day <= 22 {
-			return "Cancer"
+			return constants.Cancer
 		}
-		return "Leo"
+		return constants.Leo
 	case 8: // August
 		if day <= 22 {
-			return "Leo"
+			return constants.Leo
 		}
-		return "Virgo"
+		return constants.Virgo
 	case 9: // September
 		if day <= 22 {
-			return "Virgo"
+			return constants.Virgo
 		}
-		return "Libra"
+		return constants.Libra
 	case 10: // October
 		if day <= 22 {
-			return "Libra"
+			return constants.Libra
 		}
-		return "Scorpio"
+		return constants.Scorpio
 	case 11: // November
 		if day <= 21 {
-			return "Scorpio"
+			return constants.Scorpio
 		}
-		return "Sagittarius"
+		return constants.Sagittarius
 	case 12: // December
 		if day <= 21 {
-			return "Sagittarius"
+			return constants.Sagittarius
 		}
-		return "Capricorn"
+		return constants.Capricorn
 	}
 	return "Unknown"
 }
@@ -319,10 +320,10 @@ func (s *AstrologyService) calculateRisingSign(birthDate time.Time, birthTime st
 
 func (s *AstrologyService) getSignElement(sign string) string {
 	elements := map[string]string{
-		"Aries": "fiery", "Leo": "fiery", "Sagittarius": "fiery",
-		"Taurus": "earthy", "Virgo": "earthy", "Capricorn": "earthy",
-		"Gemini": "airy", "Libra": "airy", "Aquarius": "airy",
-		"Cancer": "watery", "Scorpio": "watery", "Pisces": "watery",
+		constants.Aries: constants.ElementFiery, constants.Leo: constants.ElementFiery, constants.Sagittarius: constants.ElementFiery,
+		constants.Taurus: constants.ElementEarthy, constants.Virgo: constants.ElementEarthy, constants.Capricorn: constants.ElementEarthy,
+		constants.Gemini: constants.ElementAiry, constants.Libra: constants.ElementAiry, constants.Aquarius: constants.ElementAiry,
+		constants.Cancer: constants.ElementWatery, constants.Scorpio: constants.ElementWatery, constants.Pisces: constants.ElementWatery,
 	}
 	return elements[sign]
 }
