@@ -41,7 +41,9 @@ func TestGetBirthChart(t *testing.T) {
 	repo := NewAstrologyRepository(db)
 
 	chart := &database.BirthChart{UserID: uuid.New(), SunSign: "Leo"}
-	repo.CreateBirthChart(chart)
+	if err := repo.CreateBirthChart(chart); err != nil {
+		t.Fatalf("CreateBirthChart failed: %v", err)
+	}
 
 	retrieved, err := repo.GetBirthChart(chart.ID)
 	if err != nil {
