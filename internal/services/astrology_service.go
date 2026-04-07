@@ -372,9 +372,9 @@ Make the remedies practical, positive, and tailored to this chart.`, chart.SunSi
 	}
 
 	return map[string]interface{}{
-		"chart_id": chart.ID,
-		"sun_sign": chart.SunSign,
-		"remedies": remediesText,
+		"chart_id":     chart.ID,
+		"sun_sign":     chart.SunSign,
+		"remedies":     remediesText,
 		"generated_at": time.Now(),
 	}, nil
 }
