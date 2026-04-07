@@ -341,3 +341,78 @@ func (s *AstrologyService) calculateCompatibility(chart1, chart2 *database.Birth
 		"sun_signs": sunSigns,
 	}
 }
+
+// GetRemedies generates personalized remedies based on a birth chart
+func (s *AstrologyService) GetRemedies(chart *database.BirthChart) (map[string]interface{}, error) {
+	// Generate remedies using AI based on the birth chart
+	prompt := fmt.Sprintf(`Based on this birth chart, provide personalized astrological remedies and recommendations:
+
+Sun Sign: %s
+Moon Sign: %s
+Rising Sign: %s
+Planets: %s
+Houses: %s
+Aspects: %s
+
+Please provide specific remedies for:
+1. Health and well-being
+2. Career and financial success
+3. Relationships and love
+4. Spiritual growth
+5. Gemstones and colors to wear
+6. Mantras or affirmations
+7. Daily practices or rituals
+
+Make the remedies practical, positive, and tailored to this chart.`, chart.SunSign, chart.MoonSign, chart.RisingSign, chart.Planets, chart.Houses, chart.Aspects)
+
+	remediesText, err := s.fetchOllamaPrediction(prompt)
+	if err != nil {
+		// Fallback remedies if AI is unavailable
+		remediesText = s.generateFallbackRemedies(chart)
+	}
+
+	return map[string]interface{}{
+		"chart_id": chart.ID,
+		"sun_sign": chart.SunSign,
+		"remedies": remediesText,
+		"generated_at": time.Now(),
+	}, nil
+}
+
+// generateFallbackRemedies provides basic remedies when AI is unavailable
+func (s *AstrologyService) generateFallbackRemedies(chart *database.BirthChart) string {
+	element := s.getSignElement(chart.SunSign)
+
+	return fmt.Sprintf(`Based on your %s sun sign (%s element), here are some general remedies:
+
+**Health & Well-being:**
+- Practice daily meditation for 10-15 minutes
+- Stay hydrated and maintain a balanced diet
+- Regular exercise according to your energy levels
+
+**Career & Finance:**
+- Focus on building stability and patience
+- Network with like-minded individuals
+- Set realistic financial goals
+
+**Relationships:**
+- Communicate openly and honestly
+- Practice active listening
+- Show appreciation for your loved ones
+
+**Spiritual Growth:**
+- Read spiritual books or scriptures
+- Connect with nature regularly
+- Practice gratitude daily
+
+**Gemstones & Colors:**
+- Wear colors that resonate with your %s energy
+- Consider gemstones like amethyst for protection
+
+**Daily Practices:**
+- Morning affirmations
+- Evening reflection
+- Maintain a positive mindset
+
+Remember, these are general suggestions. Consult with a professional astrologer for personalized guidance.`, chart.SunSign, element, element)
+}

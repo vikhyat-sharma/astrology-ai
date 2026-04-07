@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +280,82 @@ func TestFetchOllamaPredictionError(t *testing.T) {
 	_, err := service.fetchOllamaPrediction("test prompt")
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetRemedies(t *testing.T) {
+	chart := &database.BirthChart{
+		ID:         uuid.New(),
+		UserID:     uuid.New(),
+		SunSign:    constants.Aries,
+		MoonSign:   constants.Leo,
+		RisingSign: constants.Sagittarius,
+		Planets:    `{"sun": {"sign": "Aries", "degree": "15°23'"}}`,
+		Houses:     `{"1": "0° Aries"}`,
+		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "trine"}]`,
+	}
+
+	mockHTTPClient := &mocks.MockHTTPClient{
+		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: constants.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized remedies based on your Aries sun sign..."}`))),
+			}, nil
+		},
+	}
+
+	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
+
+	remedies, err := service.GetRemedies(chart)
+	if err != nil {
+		t.Fatalf("GetRemedies failed: %v", err)
+	}
+
+	if remedies["chart_id"] != chart.ID {
+		t.Fatalf("expected chart_id %v, got %v", chart.ID, remedies["chart_id"])
+	}
+
+	if remedies["sun_sign"] != constants.Aries {
+		t.Fatalf("expected sun_sign %s, got %v", constants.Aries, remedies["sun_sign"])
+	}
+
+	if remedies["remedies"].(string) == "" {
+		t.Fatal("expected non-empty remedies")
+	}
+}
+
+func TestGetRemediesFallback(t *testing.T) {
+	chart := &database.BirthChart{
+		ID:         uuid.New(),
+		UserID:     uuid.New(),
+		SunSign:    constants.Aries,
+		MoonSign:   constants.Leo,
+		RisingSign: constants.Sagittarius,
+		Planets:    `{"sun": {"sign": "Aries", "degree": "15°23'"}}`,
+		Houses:     `{"1": "0° Aries"}`,
+		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "trine"}]`,
+	}
+
+	mockHTTPClient := &mocks.MockHTTPClient{
+		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
+			return nil, errors.New("network error")
+		},
+	}
+
+	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
+
+	remedies, err := service.GetRemedies(chart)
+	if err != nil {
+		t.Fatalf("GetRemedies failed: %v", err)
+	}
+
+	if remedies["remedies"].(string) == "" {
+		t.Fatal("expected non-empty fallback remedies")
+	}
+
+	// Check that fallback contains the sun sign
+	remediesText := remedies["remedies"].(string)
+	if !strings.Contains(remediesText, "Aries") {
+		t.Fatal("expected fallback remedies to contain sun sign")
 	}
 }

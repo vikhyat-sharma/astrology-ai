@@ -177,3 +177,39 @@ func (h *AstrologyHandler) CheckCompatibility(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"compatibility": compatibility})
 }
+
+// GetRemedies handles getting remedies based on a birth chart
+func (h *AstrologyHandler) GetRemedies(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	chartIDStr := c.Param("id")
+	chartID, err := uuid.Parse(chartIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID"})
+		return
+	}
+
+	chart, err := h.astrologyService.GetBirthChart(chartID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if the chart belongs to the authenticated user
+	if chart.UserID != userID.(uuid.UUID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	remedies, err := h.astrologyService.GetRemedies(chart)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"remedies": remedies})
+}

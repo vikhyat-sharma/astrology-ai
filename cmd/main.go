@@ -76,6 +76,7 @@ func main() {
 				astro.GET(constants.BirthChartEndpoint+"/:id", astrologyHandler.GetBirthChart)
 				astro.GET(constants.DailyHoroscopeEndpoint, astrologyHandler.GetDailyHoroscope)
 				astro.POST(constants.CompatibilityEndpoint, astrologyHandler.CheckCompatibility)
+				astro.GET(constants.RemediesEndpoint+"/:id", astrologyHandler.GetRemedies)
 			}
 		}
 	}

@@ -43,6 +43,7 @@ const (
 	BirthChartEndpoint     = "/birth-chart"
 	DailyHoroscopeEndpoint = "/horoscope/daily"
 	CompatibilityEndpoint  = "/compatibility"
+	RemediesEndpoint       = "/remedies"
 )
 
 // Content types
