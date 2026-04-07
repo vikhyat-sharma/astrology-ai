@@ -9,9 +9,11 @@ This project follows Clean Architecture principles with the following structure:
 ```
 cmd/
 ├── main.go                 # Application entry point
+├── routes.go               # Route configuration and setup
 
 internal/
 ├── config/                 # Configuration management
+├── constants/              # Application constants
 ├── database/               # Database connection and migrations
 ├── handlers/               # HTTP request handlers
 ├── interfaces/             # Interface definitions for dependency injection
@@ -30,6 +32,7 @@ pkg/                        # Public libraries and utilities
 - **Birth Chart Calculation**: Generate astrological birth charts
 - **Daily Horoscopes**: AI-generated daily horoscopes for zodiac signs (with Ollama integration)
 - **Compatibility Analysis**: Check compatibility between birth charts
+- **Astrological Remedies**: Personalized remedies and recommendations based on birth charts
 - **JWT Authentication**: Secure API endpoints with JWT tokens
 - **PostgreSQL Database**: Robust data persistence with automatic table creation
 - **Comprehensive Testing**: Unit tests with mocks, integration tests, and end-to-end tests
@@ -79,7 +82,12 @@ docker-compose up -d db
 
 5. Run the application:
 ```bash
-go run cmd/main.go
+go run cmd/main.go cmd/routes.go
+```
+
+Or use the Makefile:
+```bash
+make run
 ```
 
 ## API Endpoints
@@ -97,6 +105,7 @@ go run cmd/main.go
 - `GET /api/v1/astrology/birth-chart/:id` - Get birth chart
 - `GET /api/v1/astrology/horoscope/daily?sign=Leo` - Get AI-generated daily horoscope
 - `POST /api/v1/astrology/compatibility` - Check compatibility
+- `GET /api/v1/astrology/remedies/:id` - Get personalized astrological remedies
 
 ### Health Check
 - `GET /health` - Health check endpoint
@@ -142,6 +151,12 @@ curl -X POST http://localhost:8080/api/v1/astrology/birth-chart \
 ### Get Daily Horoscope (requires Bearer token)
 ```bash
 curl -X GET "http://localhost:8080/api/v1/astrology/horoscope/daily?sign=Leo" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Get Astrological Remedies (requires Bearer token)
+```bash
+curl -X GET "http://localhost:8080/api/v1/astrology/remedies/123e4567-e89b-12d3-a456-426614174000" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -215,7 +230,12 @@ Mock implementations are provided for external dependencies like HTTP clients an
 
 ### Building
 ```bash
-go build -o bin/astrology-ai cmd/main.go
+go build -o bin/astrology-ai cmd/main.go cmd/routes.go
+```
+
+Or use the Makefile:
+```bash
+make build
 ```
 
 ### Code Organization
