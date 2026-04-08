@@ -1,0 +1,62 @@
+[
+  {
+    "input": "Write a daily horoscope for Aries.",
+    "output": "Dear Aries, today brings new opportunities for leadership and action. The stars align to support your bold initiatives. Trust your instincts and take that first step toward your goals. Financial matters look promising, but be cautious with impulsive spending. Love is in the air - single Aries may meet someone special, while those in relationships will feel a renewed connection. Health remains strong, but remember to balance your active nature with adequate rest. Remember, your natural courage is your greatest asset today.",
+    "category": "daily_horoscope",
+    "signs": ["Aries"]
+  },
+  {
+    "input": "What is the compatibility between Aries and Leo?",
+    "output": "Aries and Leo share excellent compatibility, both being fire signs with natural leadership qualities. This dynamic duo can create sparks of passion and adventure. Aries brings enthusiasm and initiative, while Leo adds warmth and generosity. Together, they can achieve great things, but both need to learn compromise. Communication is key - Aries' directness complements Leo's dramatic expression. In love, this pairing is intense and exciting. Career-wise, they make great business partners. The key to success is mutual respect for each other's strengths and giving space when needed.",
+    "category": "compatibility",
+    "signs": ["Aries", "Leo"]
+  },
+  {
+    "input": "What remedies should a Taurus follow?",
+    "output": "For Taurus, focus on grounding and stability-enhancing remedies: 1. Wear emerald or green aventurine gemstones for prosperity and growth. 2. Practice earth-based yoga poses like Mountain Pose (Tadasana) for stability. 3. Create a sacred space in your home with earthy colors and natural materials. 4. Connect with nature through gardening or walking barefoot on grass. 5. Use essential oils like patchouli or vetiver for grounding. 6. Practice mindful eating with root vegetables and whole foods. 7. Establish regular routines and rituals for consistency. 8. Chant the seed mantra 'LAM' for the root chakra. Remember, patience and persistence will bring the stability you seek.",
+    "category": "remedies",
+    "signs": ["Taurus"]
+  },
+  {
+    "input": "Write a weekly horoscope for Gemini.",
+    "output": "Dear Gemini, this week brings intellectual stimulation and social opportunities. Mercury, your ruling planet, is active, enhancing communication and learning. Monday-Wednesday: Focus on career advancement through networking. Thursday-Friday: Personal relationships take center stage - express your feelings openly. Saturday-Sunday: Take time for creative pursuits and self-reflection. Financially, be cautious with speculative investments. Health-wise, pay attention to your nervous system and ensure adequate rest. Love prospects are favorable, especially for those seeking intellectual connection. Trust your adaptability to navigate any challenges that arise.",
+    "category": "weekly_horoscope",
+    "signs": ["Gemini"]
+  },
+  {
+    "input": "Are Cancer and Scorpio compatible?",
+    "output": "Cancer and Scorpio share profound emotional compatibility as water signs, creating deep, intuitive connections. Both value emotional security and loyalty. Cancer brings nurturing and home-loving qualities, while Scorpio adds intensity and passion. This pairing can be transformative and healing. Trust and emotional intimacy are crucial for success. In love, they create a safe haven for vulnerability. Career-wise, they excel in joint ventures requiring intuition. Challenges may arise from Scorpio's intensity overwhelming Cancer's sensitivity. The key is open communication and respecting emotional boundaries. Overall, this is a highly compatible match with great potential for lasting commitment.",
+    "category": "compatibility",
+    "signs": ["Cancer", "Scorpio"]
+  },
+  {
+    "input": "What astrological remedies should a Sagittarius follow?",
+    "output": "For Sagittarius, embrace freedom-enhancing remedies: 1. Wear yellow sapphire or turquoise for wisdom and expansion. 2. Practice fire-based activities like sun salutations or running. 3. Travel to new places or explore different cultures. 4. Study philosophy, religion, or higher learning. 5. Use essential oils like frankincense or sandalwood for spiritual growth. 6. Practice meditation focusing on the third eye chakra. 7. Keep a travel journal or vision board for goals. 8. Chant 'OM' or 'RAM' mantras for abundance. 9. Donate to charitable causes for karmic balance. 10. Practice honesty and direct communication. Remember, your quest for truth and adventure is divinely guided.",
+    "category": "remedies",
+    "signs": ["Sagittarius"]
+  },
+  {
+    "input": "Write a monthly horoscope for Virgo.",
+    "output": "Dear Virgo, September brings opportunities for service and practical achievements. Mercury's influence enhances your analytical abilities. Focus on health and wellness routines. Career prospects improve through attention to detail and helpfulness. Relationships benefit from clear communication and acts of service. Financial stability comes through careful planning and organization. Creative projects may require more structure. Social connections strengthen through community involvement. Health-wise, pay attention to digestive health and stress management. Love relationships deepen through practical support and understanding. Trust your intuition alongside your logical mind for best results.",
+    "category": "monthly_horoscope",
+    "signs": ["Virgo"]
+  },
+  {
+    "input": "What is the compatibility between Libra and Aquarius?",
+    "output": "Libra and Aquarius share excellent air sign compatibility, creating intellectual and social harmony. Both value fairness, justice, and humanitarian causes. Libra brings diplomacy and aesthetic appreciation, while Aquarius adds innovation and progressive thinking. Together, they can create positive change in their community. Communication flows easily with shared ideals. In love, they enjoy stimulating conversations and shared adventures. Career-wise, they excel in creative or socially conscious fields. The main challenge is Libra's need for harmony versus Aquarius' occasional detachment. Mutual respect for individual space while maintaining connection is key to success.",
+    "category": "compatibility",
+    "signs": ["Libra", "Aquarius"]
+  },
+  {
+    "input": "What remedies should a Capricorn follow?",
+    "output": "For Capricorn, focus on structure and achievement-enhancing remedies: 1. Wear blue sapphire or garnet for career success and discipline. 2. Practice mountain pose and other grounding yoga asanas. 3. Create detailed goal-setting rituals and vision boards. 4. Use essential oils like cedarwood or frankincense for grounding. 5. Establish regular meditation practice for inner strength. 6. Work with crystals like onyx or hematite for protection. 7. Practice gratitude journaling for abundance mindset. 8. Chant 'VAM' for sacral chakra balance. 9. Volunteer for leadership roles in community service. 10. Maintain work-life balance through scheduled self-care. Remember, your disciplined nature is your greatest strength.",
+    "category": "remedies",
+    "signs": ["Capricorn"]
+  },
+  {
+    "input": "Write a daily horoscope for Pisces.",
+    "output": "Dear Pisces, today invites you to trust your intuition and embrace your compassionate nature. Neptune's energy enhances your psychic abilities and creative inspiration. Opportunities arise in artistic or healing pursuits. Emotional connections deepen with loved ones. Be gentle with yourself and others. Financial matters require careful attention to details. Health benefits from rest and spiritual practices. Love brings gentle, nurturing energy. Creative projects flow effortlessly. Trust the universe's timing and allow yourself to dream big. Your sensitivity is your superpower today.",
+    "category": "daily_horoscope",
+    "signs": ["Pisces"]
+  }
+]

@@ -1,11 +1,11 @@
 # Makefile for Astrology AI Backend
 
-.PHONY: help test test-unit test-integration test-e2e run build clean docker-build docker-run migrate lint fmt vet deps setup
+.PHONY: help test test-unit test-integration test-e2e run build clean docker-build docker-run migrate lint fmt vet deps setup train-setup train-prepare train-model train-evaluate train-ollama train-full
 
 # Default target
 help: ## Show this help message
 	@echo "Astrology AI Backend - Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
 # Testing commands
 test: ## Run all tests
@@ -98,6 +98,31 @@ check: fmt vet lint test ## Run format, vet, lint and tests
 
 install-tools: ## Install development tools
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# AI Training commands
+train-setup: ## Setup AI training environment
+	@echo "Setting up AI training environment..."
+	cd scripts/train && ./train.sh setup
+
+train-prepare: ## Prepare training data
+	@echo "Preparing training data..."
+	cd scripts/train && ./train.sh prepare-data
+
+train-model: ## Train AI model
+	@echo "Training AI model..."
+	cd scripts/train && ./train.sh train
+
+train-evaluate: ## Evaluate trained model
+	@echo "Evaluating trained model..."
+	cd scripts/train && ./train.sh evaluate
+
+train-ollama: ## Create Ollama model from trained checkpoint
+	@echo "Creating Ollama model..."
+	cd scripts/train && ./train.sh create-ollama
+
+train-full: ## Run complete training pipeline
+	@echo "Running complete training pipeline..."
+	cd scripts/train && ./train.sh full-pipeline
 	go install github.com/cosmtrek/air@latest
 
 # CI/CD commands

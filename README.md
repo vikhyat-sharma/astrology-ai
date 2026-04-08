@@ -37,6 +37,108 @@ pkg/                        # Public libraries and utilities
 - **PostgreSQL Database**: Robust data persistence with automatic table creation
 - **Comprehensive Testing**: Unit tests with mocks, integration tests, and end-to-end tests
 - **Clean Architecture**: Interface-based design with dependency injection
+- **AI Model Training**: Complete pipeline for fine-tuning custom astrology AI models
+
+## AI Training Pipeline
+
+This project includes a comprehensive AI training infrastructure for fine-tuning language models specifically for astrology content generation.
+
+### Training Features
+
+- **Data Preparation**: Automated data cleaning, formatting, and preprocessing
+- **LoRA Fine-tuning**: Efficient parameter-efficient fine-tuning using LoRA adapters
+- **Model Evaluation**: Comprehensive metrics including perplexity, BLEU, ROUGE, and astrology-specific accuracy
+- **Ollama Integration**: Automatic conversion of trained models to Ollama format for easy deployment
+- **Distributed Training**: Support for multi-GPU training with gradient accumulation
+
+### Training Prerequisites
+
+- Python 3.8+
+- PyTorch 2.0+
+- Transformers library
+- PEFT (Parameter-Efficient Fine-Tuning)
+- CUDA-compatible GPU (recommended for training)
+
+### Quick Start Training
+
+1. Setup training environment:
+```bash
+cd scripts/train
+./train.sh setup
+```
+
+2. Prepare training data:
+```bash
+./train.sh prepare-data
+```
+
+3. Train the model:
+```bash
+./train.sh train
+```
+
+4. Evaluate the trained model:
+```bash
+./train.sh evaluate
+```
+
+5. Create Ollama model:
+```bash
+./train.sh create-ollama
+```
+
+Or run the complete pipeline:
+```bash
+./train.sh full-pipeline
+```
+
+### Training Scripts
+
+- `prepare_data.py`: Data preprocessing and formatting
+- `train_model.py`: LoRA fine-tuning with PyTorch/Transformers
+- `evaluate_model.py`: Comprehensive model evaluation with multiple metrics
+- `create_ollama_model.py`: Convert trained model to Ollama format
+
+### Training Configuration
+
+Training parameters are configured in `scripts/train/config/`:
+- `data_config.yaml`: Data preprocessing settings
+- `train_config.yaml`: Model training hyperparameters
+- `eval_config.yaml`: Evaluation metrics and settings
+
+### Sample Data
+
+Sample training data is provided in `data/raw/astrology_training_data.json` with examples of:
+- Daily horoscopes for all zodiac signs
+- Compatibility analysis between signs
+- Astrological remedies and recommendations
+
+### Custom Training Data
+
+To use your own training data:
+1. Add JSON files to `data/raw/` directory
+2. Format as instruction-response pairs
+3. Run `prepare_data.py` to process the data
+
+### Model Deployment
+
+After training, the model can be deployed with Ollama:
+```bash
+# Install the trained model
+cd ollama_models
+./install.sh
+
+# Use the model
+ollama run astrology-ai
+```
+
+### Training Metrics
+
+The evaluation provides:
+- **Perplexity**: Language model quality metric
+- **BLEU/ROUGE**: Text generation quality metrics
+- **Astrology Accuracy**: Custom metric for astrology-specific content quality
+- **Response Length**: Average and distribution analysis
 
 ## Prerequisites
 

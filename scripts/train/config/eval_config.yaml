@@ -1,0 +1,89 @@
+# Model evaluation configuration
+evaluation:
+  # Model to evaluate
+  model_path: null  # Will be set by script
+  model_type: "llama"
+
+  # Test data
+  test_file: "data/processed/test.jsonl"
+  batch_size: 8
+
+  # Generation parameters
+  generation:
+    max_new_tokens: 256
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 50
+    repetition_penalty: 1.1
+    do_sample: true
+    pad_token_id: 2
+    eos_token_id: 2
+
+  # Metrics to compute
+  metrics:
+    - name: "perplexity"
+      enabled: true
+    - name: "bleu"
+      enabled: true
+    - name: "rouge"
+      enabled: true
+    - name: "meteor"
+      enabled: true
+    - name: "bert_score"
+      enabled: false  # Requires additional dependencies
+    - name: "astrology_accuracy"
+      enabled: true
+      custom: true
+
+# Astrology-specific evaluation
+astrology_eval:
+  # Test prompts for different categories
+  test_prompts:
+    daily_horoscope:
+      - "Write a daily horoscope for Aries for today."
+      - "What does the stars say about Taurus today?"
+    compatibility:
+      - "Are Aries and Libra compatible?"
+      - "What is the compatibility between Scorpio and Pisces?"
+    remedies:
+      - "What remedies should a Leo follow?"
+      - "Suggest astrological remedies for Virgo."
+
+  # Quality checks
+  quality_checks:
+    # Content should contain astrology terms
+    astrology_terms_required: 3
+    astrology_terms:
+      - "stars"
+      - "planets"
+      - "zodiac"
+      - "horoscope"
+      - "sign"
+      - "moon"
+      - "sun"
+      - "mercury"
+      - "venus"
+      - "mars"
+      - "jupiter"
+      - "saturn"
+
+    # Content should be positive/helpful
+    sentiment_check: true
+    min_positive_words: 2
+
+    # Content should be coherent
+    coherence_check: true
+    min_length: 50
+    max_length: 1000
+
+# Output configuration
+output:
+  results_file: "evaluation_results.json"
+  detailed_results_file: "evaluation_detailed.json"
+  plots_dir: "evaluation_plots"
+  sample_outputs_file: "sample_outputs.txt"
+
+# Logging
+logging:
+  log_level: "INFO"
+  log_file: "logs/evaluation.log"

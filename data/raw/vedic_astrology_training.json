@@ -1,0 +1,145 @@
+[
+  {
+    "instruction": "Explain the concept of planetary strengths according to Brihat Parashara Hora Shastra.",
+    "input": "",
+    "output": "According to Brihat Parashara Hora Shastra (Chapter 3), planetary strengths (Graha Bala) are determined by seven factors: 1. Natural strength (Sthana Bala) based on distance from Earth, 2. Directional strength (Dig Bala) based on house position, 3. Temporal strength (Kala Bala) based on time factors, 4. Motional strength (Cheshta Bala) based on planetary speed, 5. Exaltation strength (Uccha Bala), 6. Own sign strength (Swa Bala), and 7. Retrograde strength (Vakra Bala). The text emphasizes that retrograde planets gain special power and can give results similar to exalted planets. For example, a retrograde Jupiter in Cancer (exalted sign) would have enhanced beneficial effects.",
+    "category": "planetary_analysis",
+    "text": "brihat_parashara_hora_shastra",
+    "chapter": "Chapter 3: Graha Bala Adhyaya",
+    "concepts": ["planetary_strengths", "graha_bala", "retrograde_planets"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["graha_bala", "sthana_bala", "dig_bala", "kala_bala", "cheshtha_bala", "uccha_bala", "swa_bala", "vakra_bala"]
+  },
+  {
+    "instruction": "What are the significations of the 12 houses according to Brihat Parashara Hora Shastra?",
+    "input": "",
+    "output": "Brihat Parashara Hora Shastra (Chapter 4) details the significations of each house: 1st House (Lagna): Self, personality, physical body, 2nd House: Wealth, family, speech, food, 3rd House: Siblings, courage, short journeys, communication, 4th House: Home, mother, property, education, happiness, 5th House: Children, intelligence, creativity, spiritual practices, 6th House: Enemies, diseases, service, daily routine, 7th House: Marriage, partnerships, spouse, business, 8th House: Longevity, secrets, occult, transformation, 9th House: Father, guru, dharma, long journeys, fortune, 10th House: Career, reputation, authority, public life, 11th House: Gains, elder siblings, hopes, wishes, friends, 12th House: Expenses, foreign lands, spirituality, losses, isolation. Each house has primary and secondary significations that must be analyzed together.",
+    "category": "house_analysis",
+    "text": "brihat_parashara_hora_shastra",
+    "chapter": "Chapter 4: Bhava Phala Adhyaya",
+    "concepts": ["bhava_phala", "house_significations", "kundli_analysis"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["bhava", "lagna", "dharma", "karma", "artha", "kama", "moksha"]
+  },
+  {
+    "instruction": "Explain Raja Yogas according to Brihat Parashara Hora Shastra.",
+    "input": "",
+    "output": "Brihat Parashara Hora Shastra (Chapter 6) defines Raja Yogas as planetary combinations that confer power, authority, and leadership. Key Raja Yogas include: 1. When lords of Kendra (1,4,7,10) and Trikona (1,5,9) houses combine or aspect each other, 2. When exalted planets are in Kendra houses, 3. When multiple planets are in their own signs in angular houses, 4. When benefics are strong in 10th house with 9th lord, 5. When Moon and Sun are in mutual aspect with Jupiter. The text emphasizes that Raja Yoga gives power, wealth, and high status. For example, if Jupiter (9th lord) is in 10th house with Moon, it creates a powerful Raja Yoga for government or leadership positions. The strength depends on planetary dignity, aspects, and dashas.",
+    "category": "yoga_identification",
+    "text": "brihat_parashara_hora_shastra",
+    "chapter": "Chapter 6: Raja Yoga Adhyaya",
+    "concepts": ["raja_yoga", "power_combinations", "leadership_yogas"],
+    "difficulty": "advanced",
+    "vedic_terms": ["raja_yoga", "kendra", "trikona", "yoga_karaka", "dharma_karaka", "artha_karaka"]
+  },
+  {
+    "instruction": "How does Phaladeepika treat retrograde planets?",
+    "input": "",
+    "output": "Phaladeepika (Chapters 1-3) gives retrograde planets special significance, stating that they become as powerful as exalted planets. The text explains that retrograde motion indicates the planet's special attention to Earth and its inhabitants. Retrograde planets: 1. Give results of their exalted signs even when debilitated, 2. Act like Yogakaraka planets for their signs, 3. Have intensified effects on human affairs, 4. Require careful analysis as they can give mixed results. For example, retrograde Saturn in Aries (debilitated) would still give Saturn-like results but with enhanced power. The text advises that retrograde planets in dusthana houses (6,8,12) can still give beneficial results if well-aspected by benefics.",
+    "category": "planetary_analysis",
+    "text": "phaladeepika",
+    "chapter": "Chapters 1-3: Planetary Natures",
+    "concepts": ["retrograde_planets", "planetary_power", "avasthas"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["vakra", "uccha", "neecha", "yogakaraka", "dusthana"]
+  },
+  {
+    "instruction": "What are the key planetary combinations for wealth according to Phaladeepika?",
+    "input": "",
+    "output": "Phaladeepika (Chapters 4-6) describes several Dhana Yogas (wealth combinations): 1. When 2nd lord is strong and aspected by benefics, 2. When 11th lord combines with 9th or 10th lord, 3. When Jupiter aspects 2nd house or 2nd lord, 4. When Venus is strong in 2nd or 11th house, 5. When multiple planets occupy 2nd house, 6. When 9th lord is in 11th house or vice versa. The text emphasizes that wealth yogas require: strong 2nd house/lord, 11th house/lord involvement, Jupiter's blessing, and absence of malefic aspects. For example, if Jupiter aspects a strong Venus in 2nd house, it creates a powerful wealth yoga. The results manifest during favorable dashas and require the person's karma for actual manifestation.",
+    "category": "yoga_identification",
+    "text": "phaladeepika",
+    "chapter": "Chapters 4-6: Planetary Combinations",
+    "concepts": ["dhana_yoga", "wealth_combinations", "financial_astrology"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["dhana_yoga", "labha", "artha", "dhanakaraka", "yogakaraka"]
+  },
+  {
+    "instruction": "Explain the forms of signs (Rashi Shila) according to Jataka Parijata.",
+    "input": "",
+    "output": "Jataka Parijata (Chapter 1) classifies the 12 signs into different forms based on their nature and effects: 1. Male signs (Masculine): Aries, Gemini, Leo, Libra, Sagittarius, Aquarius - active, outgoing, leadership qualities, 2. Female signs (Feminine): Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces - receptive, nurturing, emotional qualities, 3. Movable signs (Chara): Aries, Cancer, Libra, Capricorn - dynamic, initiating change, 4. Fixed signs (Sthira): Taurus, Leo, Scorpio, Aquarius - stable, determined, resistant to change, 5. Dual signs (Dvisvabhava): Gemini, Virgo, Sagittarius, Pisces - adaptable, communicative, dual nature. The text explains how these forms affect personality, behavior, and life events. For example, a person with Moon in a movable sign would be dynamic and initiate changes frequently.",
+    "category": "house_analysis",
+    "text": "jataka_parijata",
+    "chapter": "Chapter 1: Rashi Shila",
+    "concepts": ["rashi_shila", "sign_characteristics", "zodiac_classification"],
+    "difficulty": "beginner",
+    "vedic_terms": ["rashi", "shila", "chara", "sthira", "dvisvabhava", "masculine", "feminine"]
+  },
+  {
+    "instruction": "What are the planetary natures (Graha Svarupa) according to Jataka Parijata?",
+    "input": "",
+    "output": "Jataka Parijata (Chapter 2) describes the inherent natures of planets: Sun (Surya): Soul, father, power, leadership, government, self, Taurus, Leo; Moon (Chandra): Mind, mother, emotions, public, water, Cancer; Mars (Mangala): Energy, siblings, courage, land, Aries, Scorpio; Mercury (Budha): Intelligence, communication, business, Gemini, Virgo; Jupiter (Guru): Wisdom, spirituality, wealth, Sagittarius, Pisces; Venus (Shukra): Love, beauty, arts, luxury, Taurus, Libra; Saturn (Shani): Discipline, karma, hard work, Capricorn, Aquarius. Each planet has: color, taste, element, direction, day, metal, gem, and effects on human life. The text emphasizes that planets give results according to their basic nature, modified by sign placement, aspects, and dashas.",
+    "category": "planetary_analysis",
+    "text": "jataka_parijata",
+    "chapter": "Chapter 2: Graha Svarupa",
+    "concepts": ["graha_svarupa", "planetary_characteristics", "planetary_natures"],
+    "difficulty": "beginner",
+    "vedic_terms": ["graha", "svarupa", "karaka", "rashi", "nakshatra", "pada"]
+  },
+  {
+    "instruction": "Explain Vimshottari Dasha system according to Brihat Parashara Hora Shastra.",
+    "input": "",
+    "output": "Brihat Parashara Hora Shastra (Chapter 10) explains Vimshottari Dasha as the most important timing system in Vedic astrology. The system has 120 years total divided among planets: Sun (6 years), Moon (10), Mars (7), Rahu (18), Jupiter (16), Saturn (19), Mercury (17), Ketu (7), Venus (20). The sequence is: Sun → Moon → Mars → Rahu → Jupiter → Saturn → Mercury → Ketu → Venus, then repeats. The starting point is determined by Moon's Nakshatra at birth. The text states that planets give results according to their placement, aspects, and conjunctions during their dasha periods. For example, if someone has Moon in Sun's Nakshatra, their first dasha would be Sun dasha for 6 years, then Moon for 10 years, etc. The dasha lord's strength and placement determine the quality of results.",
+    "category": "dasha_prediction",
+    "text": "brihat_parashara_hora_shastra",
+    "chapter": "Chapter 10: Dasha Systems",
+    "concepts": ["vimshottari_dasha", "timing_techniques", "dasha_calculation"],
+    "difficulty": "advanced",
+    "vedic_terms": ["vimshottari", "dasha", "mahadasha", "antardasha", "nakshatra", "pada"]
+  },
+  {
+    "instruction": "What remedial measures are suggested in Phaladeepika for malefic planetary influences?",
+    "input": "",
+    "output": "Phaladeepika (Chapters 16-18) prescribes various remedial measures (Prayaschitta) for malefic planets: 1. Gemstone therapy: Blue sapphire for Saturn, red coral for Mars, yellow sapphire for Jupiter, 2. Mantra recitation: Specific mantras for each planet (e.g., 'Om Shan Shanishwaraya Namaha' for Saturn), 3. Charitable acts: Feeding the poor, donating to temples, helping the needy, 4. Fasting on specific days: Saturdays for Saturn, Tuesdays for Mars, 5. Wearing metals: Iron for Saturn, gold for Sun, silver for Moon, 6. Yantra worship: Specific geometric diagrams for planetary appeasement, 7. Temple visits: Visiting specific temples associated with planets, 8. Spiritual practices: Meditation, yoga, and devotion to reduce karmic effects. The text emphasizes that remedies should be performed with faith and that they help mitigate but not completely eliminate planetary influences.",
+    "category": "remedial_advice",
+    "text": "phaladeepika",
+    "chapter": "Chapters 16-18: Remedial Measures",
+    "concepts": ["remedial_measures", "gemstone_therapy", "mantra_remedies"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["prayaschitta", "upaya", "mantra", "yantra", "tantra", "dana", "vrat"]
+  },
+  {
+    "instruction": "How does Jataka Parijata analyze marriage and relationships?",
+    "input": "",
+    "output": "Jataka Parijata provides detailed analysis of marriage and relationships through multiple factors: 1. 7th house and its lord for marriage, 2. Venus and Jupiter for marital happiness, 3. Moon for emotional compatibility, 4. Planetary combinations for spouse characteristics, 5. Dasha periods for marriage timing, 6. Aspects between 1st and 7th houses, 7. Navamsa chart for marital harmony. The text describes how different planetary placements affect marriage: Venus in 7th gives beautiful spouse, Saturn delays marriage, Mars causes conflicts, Jupiter brings harmony. For example, if 7th lord is in 11th house with Jupiter, it indicates marriage to a wealthy, spiritual person. The text also covers delayed marriage, multiple marriages, and relationship challenges based on planetary configurations.",
+    "category": "compatibility_analysis",
+    "text": "jataka_parijata",
+    "chapter": "Marriage and Relationships Analysis",
+    "concepts": ["marriage_predictions", "relationship_astrology", "7th_house_analysis"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["vivaha", "kalyan", "saptama_bhava", "navamsa", "manglik", "gand_milan"]
+  },
+  {
+    "instruction": "Analyze a birth chart with Sun in Leo, Moon in Cancer, and Jupiter in Sagittarius according to Vedic principles.",
+    "input": "",
+    "output": "This combination creates a powerful spiritual and leadership-oriented chart according to Vedic astrology principles from all three texts: 1. Sun in Leo (own sign, exalted Moon in Cancer) creates a Raja Yoga with emotional sensitivity, 2. Jupiter in Sagittarius (own sign) enhances wisdom and spiritual growth, 3. The Sun-Moon-Jupiter alignment suggests strong dharma (righteousness) and leadership qualities. According to Brihat Parashara Hora Shastra, this forms a powerful Raja Yoga for authority and spiritual leadership. Phaladeepika would note the enhanced benefic influences for wisdom and compassion. Jataka Parijata emphasizes the strong fire element dominance leading to dynamic, purposeful life. The person would likely excel in teaching, spiritual guidance, or leadership roles, with strong intuition and creative abilities. Remedial practices would focus on maintaining balance between power and compassion.",
+    "category": "birth_chart_reading",
+    "text": "integrated_vedic_analysis",
+    "chapter": "Comprehensive Chart Analysis",
+    "concepts": ["birth_chart_reading", "raja_yoga", "spiritual_astrology"],
+    "difficulty": "advanced",
+    "vedic_terms": ["raja_yoga", "dharma", "karma", "sattva", "tapas", "jnana"]
+  },
+  {
+    "instruction": "What is the significance of Nakshatras in Vedic astrology according to these classical texts?",
+    "input": "",
+    "output": "All three classical texts emphasize the importance of Nakshatras (lunar mansions) in Vedic astrology: Brihat Parashara Hora Shastra (Chapter 10) uses Nakshatras for Vimshottari Dasha calculations and describes their ruling deities and effects. Phaladeepika (Chapters 1-3) explains how Nakshatras modify planetary effects and determine personality traits. Jataka Parijata (Chapter 2) details the 27 Nakshatras and their characteristics. Key significances: 1. Dasha timing (Moon's Nakshatra determines starting dasha), 2. Personality traits (each Nakshatra has specific qualities), 3. Marriage compatibility (matching Nakshatras), 4. Spiritual growth (certain Nakshatras indicate spiritual inclination), 5. Career guidance (Nakshatra qualities suggest suitable professions). For example, a person born in Rohini Nakshatra (ruled by Moon, Brahma) would have nurturing, creative, artistic qualities with strong family bonds.",
+    "category": "planetary_analysis",
+    "text": "integrated_vedic_analysis",
+    "chapter": "Nakshatra Significance",
+    "concepts": ["nakshatra_analysis", "lunar_mansions", "personality_astrology"],
+    "difficulty": "intermediate",
+    "vedic_terms": ["nakshatra", "pada", "rashi", "vimshottari", "guna", "devata", "symbol"]
+  },
+  {
+    "instruction": "Explain the concept of Karma and planetary influences according to Vedic astrology.",
+    "input": "",
+    "output": "Vedic astrology views planetary influences as manifestations of karma from past lives, as explained in Brihat Parashara Hora Shastra (Chapter 1): 1. Planets are instruments of karma, not causes of destiny, 2. Strong planetary combinations indicate good karma from previous lives, 3. Challenging placements suggest karmic lessons to be learned, 4. Remedial measures help mitigate karmic effects and create positive karma, 5. Spiritual practices under benefic influences accelerate spiritual evolution. Phaladeepika emphasizes that astrology shows the karmic blueprint, not unchangeable fate. Jataka Parijata explains how planetary dashas bring karmic results at appropriate times. The texts teach that while planets indicate karmic patterns, free will and spiritual practices can modify outcomes. For example, Saturn's challenges are karmic lessons for discipline and detachment, while Jupiter's blessings indicate spiritual merit from past good deeds.",
+    "category": "predictive_methods",
+    "text": "integrated_vedic_analysis",
+    "chapter": "Karma and Astrology",
+    "concepts": ["karma_astrology", "spiritual_evolution", "free_will"],
+    "difficulty": "advanced",
+    "vedic_terms": ["karma", "samskara", "prarabdha", "purushartha", "dharma", "moksha", "maya"]
+  }
+]

@@ -1,0 +1,61 @@
+# Data preparation configuration
+data:
+  # Input/output directories
+  raw_data_dir: "../../data/raw"
+  processed_data_dir: "../../data/processed"
+
+  # Data preprocessing
+  preprocessing:
+    # Text cleaning
+    clean_text: true
+    remove_urls: true
+    remove_emails: true
+    remove_special_chars: false
+    normalize_unicode: true
+
+  # Filtering
+  filters:
+    min_input_length: 10
+    min_output_length: 20
+    remove_duplicates: true
+
+  # Data splitting
+  split:
+    train_size: 0.8
+    val_size: 0.1
+    test_size: 0.1
+    seed: 42
+
+  # Output format
+  output:
+    format: "jsonl"
+    include_metadata: true
+
+# Vedic Astrology Configuration
+vedic_astrology:
+  # Quality filters for Vedic content
+  quality_filters:
+    sanskrit_terms_required: 0
+    sanskrit_terms:
+      - "graha"
+      - "bhava"
+      - "yoga"
+      - "dasha"
+      - "raja"
+      - "dhana"
+      - "vimshottari"
+      - "nakshatra"
+      - "rashi"
+      - "kundli"
+    classical_references_required: false
+    allowed_texts:
+      - "brihat_parashara_hora_shastra"
+      - "phaladeepika"
+      - "jataka_parijata"
+      - "brihat_jataka"
+      - "saravali"
+      - "integrated_vedic_analysis"
+
+# Model configuration
+model:
+  max_seq_length: 512

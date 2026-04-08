@@ -1,0 +1,169 @@
+# Vedic Astrology Training Configuration
+vedic_astrology:
+  # Source texts and their priorities
+  source_texts:
+    brihat_parashara_hora_shastra:
+      priority: "high"
+      chapters:
+        - name: "Chapter 3: Planetary Characteristics"
+          verses: "3.1-3.50"
+          concepts: ["planetary_strengths", "graha_bala"]
+        - name: "Chapter 4: House Significations"
+          verses: "4.1-4.30"
+          concepts: ["bhava_phala", "house_significations"]
+        - name: "Chapter 6: Raja Yogas"
+          verses: "6.1-6.40"
+          concepts: ["raja_yoga", "power_combinations"]
+        - name: "Chapter 7: Planetary Combinations"
+          verses: "7.1-7.35"
+          concepts: ["graha_yoga", "planetary_combinations"]
+        - name: "Chapter 10: Dasha Systems"
+          verses: "10.1-10.25"
+          concepts: ["dasha_systems", "vimshottari_dasha"]
+
+    phaladeepika:
+      priority: "high"
+      chapters:
+        - name: "Chapters 1-3: Planetary Natures"
+          verses: "1.1-3.30"
+          concepts: ["planetary_natures", "avasthas"]
+        - name: "Chapters 4-6: Planetary Combinations"
+          verses: "4.1-6.25"
+          concepts: ["yogas", "planetary_combinations"]
+        - name: "Chapters 10-12: Dasha Analysis"
+          verses: "10.1-12.20"
+          concepts: ["dasha_timing", "predictive_astrology"]
+
+    jataka_parijata:
+      priority: "medium"
+      chapters:
+        - name: "Chapter 1: Forms of Signs"
+          verses: "1.1-1.25"
+          concepts: ["rashi_shila", "sign_characteristics"]
+        - name: "Chapter 2: Planetary Natures"
+          verses: "2.1-2.30"
+          concepts: ["graha_svarupa", "planetary_characteristics"]
+        - name: "Chapter 7: Raja Yogas"
+          verses: "7.1-7.35"
+          concepts: ["raja_yoga", "power_yogas"]
+
+  # Vedic astrology specific concepts
+  concepts:
+    # Core concepts
+    planetary_analysis:
+      - "planetary_strengths"
+      - "exaltation_debilitation"
+      - "own_sign_moolatrikona"
+      - "retrograde_planets"
+      - "avasthas_states"
+      - "planetary_friendships"
+
+    house_analysis:
+      - "bhava_phala"
+      - "house_significations"
+      - "kendra_trikona"
+      - "dusthana_houses"
+      - "upachaya_houses"
+
+    yogas_combinations:
+      - "raja_yoga"
+      - "dhana_yoga"
+      - "sanyasa_yoga"
+      - "panchmahapurusha_yoga"
+      - "neecha_bhanga_raja_yoga"
+
+    timing_techniques:
+      - "vimshottari_dasha"
+      - "yogini_dasha"
+      - "kalachakra_dasha"
+      - "transits_gochara"
+      - "dashas_and_transits"
+
+    predictive_methods:
+      - "marriage_predictions"
+      - "career_analysis"
+      - "health_assessment"
+      - "longevity_calculation"
+      - "spiritual_evolution"
+
+    remedial_measures:
+      - "gemstone_remedies"
+      - "mantra_remedies"
+      - "ritual_practices"
+      - "charitable_acts"
+      - "spiritual_practices"
+
+  # Training data categories
+  training_categories:
+    - "planetary_interpretation"
+    - "house_analysis"
+    - "yoga_identification"
+    - "dasha_prediction"
+    - "remedial_advice"
+    - "compatibility_analysis"
+    - "birth_chart_reading"
+    - "transit_analysis"
+
+  # Quality filters for Vedic content
+  quality_filters:
+    # Must include Sanskrit terms with explanations
+    sanskrit_terms_required: 2
+    sanskrit_terms:
+      - "graha"
+      - "bhava"
+      - "yoga"
+      - "dasha"
+      - "raja"
+      - "dhana"
+      - "vimshottari"
+      - "nakshatra"
+      - "rashi"
+      - "kundli"
+
+    # Must reference classical texts
+    classical_references_required: true
+    allowed_texts:
+      - "brihat_parashara_hora_shastra"
+      - "phaladeepika"
+      - "jataka_parijata"
+      - "brihat_jataka"
+      - "saravali"
+
+    # Content accuracy checks
+    vedic_accuracy_checks:
+      - "correct_planetary_rulerships"
+      - "accurate_yoga_definitions"
+      - "proper_dasha_calculations"
+      - "traditional_house_significations"
+
+# Data collection strategy
+data_collection:
+  # Sources for text content
+  sources:
+    - type: "book_translations"
+      format: "pdf"
+      priority: "high"
+    - type: "online_resources"
+      format: "html"
+      priority: "medium"
+    - type: "scholarly_articles"
+      format: "pdf"
+      priority: "medium"
+    - type: "commentaries"
+      format: "text"
+      priority: "low"
+
+  # Content processing
+  processing:
+    chunk_size: 1000  # words per chunk
+    overlap: 100      # words overlap between chunks
+    min_quality_score: 0.8
+    require_references: true
+
+  # Training data generation
+  generation:
+    questions_per_concept: 5
+    variations_per_question: 3
+    include_examples: true
+    include_calculations: true
+    cross_reference_texts: true

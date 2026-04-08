@@ -1,0 +1,33 @@
+{
+  "total_records": 23,
+  "splits": {
+    "train": 18,
+    "validation": 2,
+    "test": 3
+  },
+  "categories": {
+    "train": {
+      "predictive_methods": 1,
+      "house_analysis": 2,
+      "daily_horoscope": 2,
+      "yoga_identification": 2,
+      "planetary_analysis": 3,
+      "compatibility": 2,
+      "remedies": 2,
+      "weekly_horoscope": 1,
+      "dasha_prediction": 1,
+      "birth_chart_reading": 1,
+      "monthly_horoscope": 1
+    },
+    "validation": {
+      "remedies": 1,
+      "remedial_advice": 1
+    },
+    "test": {
+      "compatibility_analysis": 1,
+      "compatibility": 1,
+      "planetary_analysis": 1
+    }
+  },
+  "created_at": "2026-04-08T19:31:00.836843"
+}
