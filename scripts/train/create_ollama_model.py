@@ -373,7 +373,7 @@ def main():
 
     print("\nTo install the model:")
     print(f"  cd {result['model_dir']}")
-    print("  ./install.sh"
+    print("  ./install.sh")
 
 if __name__ == "__main__":
     main()
