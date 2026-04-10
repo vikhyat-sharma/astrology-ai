@@ -22,6 +22,9 @@ LOGS_DIR="$PROJECT_ROOT/logs"
 # Create necessary directories
 mkdir -p "$DATA_DIR" "$MODELS_DIR" "$LOGS_DIR"
 
+# Run from repo root so config paths resolve correctly
+cd "$PROJECT_ROOT"
+
 # Function to print colored output
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -89,7 +92,7 @@ install_dependencies() {
 prepare_data() {
     print_info "Preparing training data..."
 
-    python3 "$SCRIPT_DIR/prepare_data.py"
+    python3 "$SCRIPT_DIR/prepare_data.py" --config "$SCRIPT_DIR/config/data_config.yaml"
 
     print_success "Training data prepared."
 }
@@ -98,7 +101,7 @@ prepare_data() {
 train_model() {
     print_info "Starting model training..."
 
-    python3 "$SCRIPT_DIR/train_model.py"
+    python3 "$SCRIPT_DIR/train_model.py" --config "$SCRIPT_DIR/config/train_config.yaml"
 
     print_success "Training completed."
 }
@@ -115,7 +118,7 @@ evaluate_model() {
         exit 1
     fi
 
-    python3 "$SCRIPT_DIR/evaluate_model.py" --model-path "$model_path"
+    python3 "$SCRIPT_DIR/evaluate_model.py" --config "$SCRIPT_DIR/config/eval_config.yaml" --model-path "$model_path"
 
     print_success "Evaluation completed."
 }
@@ -132,7 +135,7 @@ create_ollama_model() {
         exit 1
     fi
 
-    python3 "$SCRIPT_DIR/create_ollama_model.py" --model-path "$model_path"
+    python3 "$SCRIPT_DIR/create_ollama_model.py" --config "$SCRIPT_DIR/config/train_config.yaml" --model-path "$model_path"
 
     print_success "Ollama model created."
 }

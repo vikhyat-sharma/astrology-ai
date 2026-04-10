@@ -231,16 +231,34 @@ class AstrologyDataPreparer:
         formatted_data = []
 
         for _, row in df.iterrows():
-            # Create training example
+            signs = row.get('signs', [])
+            if isinstance(signs, (list, tuple)):
+                signs = list(signs)
+            elif isinstance(signs, str):
+                signs = [signs]
+            elif pd.isna(signs):
+                signs = []
+            else:
+                try:
+                    signs = list(signs)
+                except Exception:
+                    signs = []
+
+            instruction = row['input'] if pd.notna(row['input']) else ""
+            output = row['output'] if pd.notna(row['output']) else ""
+            category = row.get('category', 'general')
+            if pd.isna(category):
+                category = 'general'
+
             example = {
-                "instruction": row['input'],
+                "instruction": instruction,
                 "input": "",
-                "output": row['output'],
-                "category": row.get('category', 'general'),
-                "signs": row.get('signs', []),
+                "output": output,
+                "category": category,
+                "signs": signs,
                 "metadata": {
-                    "input_length": row['input_length'],
-                    "output_length": row['output_length'],
+                    "input_length": int(row['input_length']),
+                    "output_length": int(row['output_length']),
                     "created_at": row['created_at']
                 }
             }

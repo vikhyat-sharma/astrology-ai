@@ -63,11 +63,27 @@ class AstrologyModelTrainer:
         """Load processed training data."""
         logger.info("Loading training data...")
 
-        data_dir = Path(self.config['data']['processed_data_dir'])
+        data_config = self.config['data']
+        if 'processed_data_dir' in data_config:
+            data_dir = Path(data_config['processed_data_dir'])
+        elif 'train_file' in data_config:
+            data_dir = Path(data_config['train_file']).parent
+        elif 'validation_file' in data_config:
+            data_dir = Path(data_config['validation_file']).parent
+        else:
+            raise KeyError(
+                "Missing data configuration: one of data.processed_data_dir, data.train_file, or data.validation_file is required"
+            )
 
         datasets_dict = {}
         for split in ['train', 'validation']:
-            file_path = data_dir / f"{split}.jsonl"
+            if split == 'train' and 'train_file' in data_config:
+                file_path = Path(data_config['train_file'])
+            elif split == 'validation' and 'validation_file' in data_config:
+                file_path = Path(data_config['validation_file'])
+            else:
+                file_path = data_dir / f"{split}.jsonl"
+
             if file_path.exists():
                 dataset = Dataset.from_json(str(file_path))
                 datasets_dict[split] = dataset
@@ -150,11 +166,12 @@ class AstrologyModelTrainer:
             formatted_texts.append(text)
 
         # Tokenize
+        max_seq_length = self.config['data'].get('max_seq_length', self.config['data'].get('max_length', 512))
         tokenized = self.tokenizer(
             formatted_texts,
             truncation=True,
             padding=False,
-            max_length=self.config['data']['max_seq_length'],
+            max_length=max_seq_length,
             return_tensors="pt"
         )
 

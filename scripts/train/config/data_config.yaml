@@ -1,8 +1,8 @@
 # Data preparation configuration
 data:
   # Input/output directories
-  raw_data_dir: "../../data/raw"
-  processed_data_dir: "../../data/processed"
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
 
   # Data preprocessing
   preprocessing:
