@@ -130,11 +130,11 @@ class AstrologyModelTrainer:
         logger.info("Setting up LoRA...")
 
         lora_config = LoraConfig(
-            r=self.config['lora']['r'],
-            lora_alpha=self.config['lora']['lora_alpha'],
-            target_modules=self.config['lora']['target_modules'],
-            lora_dropout=self.config['lora']['lora_dropout'],
-            bias=self.config['lora']['bias'],
+            r=self.config['model']['lora']['r'],
+            lora_alpha=self.config['model']['lora']['lora_alpha'],
+            target_modules=self.config['model']['lora']['target_modules'],
+            lora_dropout=self.config['model']['lora']['lora_dropout'],
+            bias=self.config['model']['lora']['bias'],
             task_type="CAUSAL_LM"
         )
 
@@ -170,9 +170,9 @@ class AstrologyModelTrainer:
         tokenized = self.tokenizer(
             formatted_texts,
             truncation=True,
-            padding=False,
+            padding="max_length",
             max_length=max_seq_length,
-            return_tensors="pt"
+            return_tensors=None
         )
 
         return tokenized
@@ -204,7 +204,7 @@ class AstrologyModelTrainer:
             gradient_checkpointing=training_config.get('gradient_checkpointing', True),
 
             # Evaluation and saving
-            evaluation_strategy="steps",
+            eval_strategy="steps",
             eval_steps=training_config['eval_steps'],
             save_steps=training_config['save_steps'],
             save_total_limit=training_config['save_total_limit'],
@@ -279,14 +279,22 @@ class AstrologyModelTrainer:
 
             # Save the final model
             final_model_path = self.output_dir / "final_model"
-            trainer.save_model(str(final_model_path))
-            self.tokenizer.save_pretrained(str(final_model_path))
+            logger.info(f"Attempting to save model to {final_model_path}")
+            try:
+                trainer.save_model(str(final_model_path))
+                self.tokenizer.save_pretrained(str(final_model_path))
+                logger.info(f"Model saved successfully to {final_model_path}")
+            except Exception as e:
+                logger.error(f"Failed to save model: {e}")
+                raise
 
             logger.info(f"Training completed! Model saved to {final_model_path}")
 
             # Save training config
-            with open(self.output_dir / "training_config.json", 'w') as f:
+            config_path = self.output_dir / "training_config.json"
+            with open(config_path, 'w') as f:
                 json.dump(self.config, f, indent=2)
+            logger.info(f"Training config saved to {config_path}")
 
             return str(final_model_path)
 

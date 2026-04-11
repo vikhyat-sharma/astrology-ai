@@ -96,8 +96,8 @@ PARAMETER stop "### Response:"
             "license": "Apache 2.0",
             "base_model": self.config['model']['base_model'],
             "training_config": {
-                "lora_r": self.config['lora']['r'],
-                "lora_alpha": self.config['lora']['lora_alpha'],
+                "lora_r": self.config['model']['lora']['r'],
+                "lora_alpha": self.config['model']['lora']['lora_alpha'],
                 "epochs": self.config['training']['num_train_epochs'],
                 "learning_rate": self.config['training']['learning_rate']
             },
