@@ -1,33 +1,46 @@
 {
-  "total_records": 23,
+  "total_records": 145,
   "splits": {
-    "train": 18,
-    "validation": 2,
-    "test": 3
+    "train": 116,
+    "validation": 14,
+    "test": 15
   },
   "categories": {
     "train": {
-      "predictive_methods": 1,
-      "house_analysis": 2,
-      "daily_horoscope": 2,
-      "yoga_identification": 2,
-      "planetary_analysis": 3,
-      "compatibility": 2,
-      "remedies": 2,
-      "weekly_horoscope": 1,
-      "dasha_prediction": 1,
-      "birth_chart_reading": 1,
-      "monthly_horoscope": 1
-    },
-    "validation": {
-      "remedies": 1,
+      "compatibility_analysis": 1,
+      "yoga_identification": 5,
+      "daily_horoscope": 31,
+      "house_analysis": 12,
+      "weekly_horoscope": 11,
+      "birth_chart_reading": 4,
+      "remedies": 12,
+      "planetary_analysis": 9,
+      "compatibility": 13,
+      "monthly_horoscope": 9,
+      "dasha_prediction": 8,
       "remedial_advice": 1
     },
-    "test": {
-      "compatibility_analysis": 1,
+    "validation": {
+      "house_analysis": 2,
+      "daily_horoscope": 3,
+      "monthly_horoscope": 2,
+      "weekly_horoscope": 1,
+      "remedies": 2,
+      "planetary_analysis": 2,
       "compatibility": 1,
-      "planetary_analysis": 1
+      "predictive_methods": 1
+    },
+    "test": {
+      "monthly_horoscope": 2,
+      "planetary_analysis": 2,
+      "yoga_identification": 1,
+      "compatibility": 1,
+      "remedies": 1,
+      "dasha_prediction": 2,
+      "weekly_horoscope": 1,
+      "daily_horoscope": 4,
+      "birth_chart_reading": 1
     }
   },
-  "created_at": "2026-04-09T22:47:31.393342"
+  "created_at": "2026-04-12T12:05:43.616177"
 }

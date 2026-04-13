@@ -190,6 +190,7 @@ class AstrologyModelTrainer:
 
             # Training hyperparameters
             num_train_epochs=training_config['num_train_epochs'],
+            max_steps=training_config.get('max_steps', None),
             per_device_train_batch_size=training_config['per_device_train_batch_size'],
             per_device_eval_batch_size=training_config['per_device_eval_batch_size'],
             gradient_accumulation_steps=training_config['gradient_accumulation_steps'],

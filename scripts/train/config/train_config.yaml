@@ -21,17 +21,18 @@ model:
 training:
   # Training hyperparameters
   output_dir: "./models/astrology-ai"
-  num_train_epochs: 1
+  num_train_epochs: 3  # Increased for better learning with more data
+  max_steps: 500  # Limit steps for controlled training
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 1
-  learning_rate: 0.00005
+  gradient_accumulation_steps: 4  # Effective batch size = 8
+  learning_rate: 0.00002  # Lower learning rate for stability
   weight_decay: 0.01
-  warmup_steps: 0
-  logging_steps: 1
-  save_steps: 1
-  eval_steps: 1
-  save_total_limit: 2
+  warmup_steps: 50  # Warmup for stable training
+  logging_steps: 10
+  save_steps: 50
+  eval_steps: 50
+  save_total_limit: 3
 
   # Optimization
   optim: "adamw_torch"

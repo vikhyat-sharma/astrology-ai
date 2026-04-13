@@ -67,6 +67,18 @@ class AstrologyDataPreparer:
             except Exception as e:
                 logger.warning(f"Failed to load general data: {e}")
 
+        # Load JSONL files from raw directory
+        for file_path in self.raw_data_dir.glob("*.jsonl"):
+            try:
+                with open(file_path, 'r') as f:
+                    for line in f:
+                        if line.strip():
+                            data = json.loads(line.strip())
+                            all_data.append(data)
+                logger.info(f"Loaded data from {file_path.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load {file_path}: {e}")
+
         # Load other JSON files from raw directory
         for file_path in self.raw_data_dir.glob("*.json"):
             if file_path.name not in ["vedic_astrology_training.json", "astrology_training_data.json"]:
