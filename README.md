@@ -309,11 +309,11 @@ make ci          # Simulate CI pipeline
 
 ## 🤝 Contributing
 
-1. Fork the repo
+1. Fork the repository
 2. Create a feature branch
 3. Commit changes
 4. Add/modify tests
-5. Open a PR
+5. Open a Pull Request
 
 ---
 
