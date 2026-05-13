@@ -26,7 +26,11 @@ const (
 
 // Horoscope types
 const (
-	HoroscopeTypeDaily = "daily"
+	HoroscopeTypeDaily   = "daily"
+	HoroscopeTypeWeekly  = "weekly"
+	HoroscopeTypeMonthly = "monthly"
+	HoroscopeTypeYearly  = "yearly"
+	HoroscopeTypeLove    = "love"
 )
 
 // API paths
@@ -42,6 +46,7 @@ const (
 	BirthInfoEndpoint      = "/birth-info"
 	BirthChartEndpoint     = "/birth-chart"
 	DailyHoroscopeEndpoint = "/horoscope/daily"
+	HoroscopeEndpoint      = "/horoscope"
 	CompatibilityEndpoint  = "/compatibility"
 	RemediesEndpoint       = "/remedies"
 )
