@@ -17,29 +17,38 @@ import (
 
 // AstrologyService handles astrology business logic
 type AstrologyService struct {
-	astrologyRepo interfaces.AstrologyRepositoryInterface
-	ollamaURL     string
-	ollamaModel   string
-	httpClient    interfaces.HTTPClientInterface
+	astrologyRepo        interfaces.AstrologyRepositoryInterface
+	calculationService   *CalculationService
+	compatibilityService *CompatibilityService
+	dashaService         *DashaService
+	ollamaURL            string
+	ollamaModel          string
+	httpClient           interfaces.HTTPClientInterface
 }
 
 // NewAstrologyService creates a new astrology service
 func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollamaURL, ollamaModel string) *AstrologyService {
 	return &AstrologyService{
-		astrologyRepo: astrologyRepo,
-		ollamaURL:     ollamaURL,
-		ollamaModel:   ollamaModel,
-		httpClient:    &http.Client{Timeout: constants.OllamaTimeoutSeconds * time.Second},
+		astrologyRepo:        astrologyRepo,
+		calculationService:   NewCalculationService(),
+		compatibilityService: NewCompatibilityService(astrologyRepo),
+		dashaService:         NewDashaService(astrologyRepo),
+		ollamaURL:            ollamaURL,
+		ollamaModel:          ollamaModel,
+		httpClient:           &http.Client{Timeout: constants.OllamaTimeoutSeconds * time.Second},
 	}
 }
 
 // NewAstrologyServiceWithClient creates a new astrology service with custom HTTP client
 func NewAstrologyServiceWithClient(astrologyRepo interfaces.AstrologyRepositoryInterface, ollamaURL, ollamaModel string, httpClient interfaces.HTTPClientInterface) *AstrologyService {
 	return &AstrologyService{
-		astrologyRepo: astrologyRepo,
-		ollamaURL:     ollamaURL,
-		ollamaModel:   ollamaModel,
-		httpClient:    httpClient,
+		astrologyRepo:        astrologyRepo,
+		calculationService:   NewCalculationService(),
+		compatibilityService: NewCompatibilityService(astrologyRepo),
+		dashaService:         NewDashaService(astrologyRepo),
+		ollamaURL:            ollamaURL,
+		ollamaModel:          ollamaModel,
+		httpClient:           httpClient,
 	}
 }
 
@@ -56,56 +65,38 @@ type BirthChartData struct {
 
 // CreateBirthChart creates a new birth chart for a user
 func (s *AstrologyService) CreateBirthChart(data BirthChartData) (*database.BirthChart, error) {
-	// Calculate astrological data (simplified for now)
-	sunSign := s.calculateSunSign(data.BirthDate)
-	moonSign := s.calculateMoonSign(data.BirthDate, data.BirthTime)
-	risingSign := s.calculateRisingSign(data.BirthDate, data.BirthTime, data.Latitude, data.Longitude)
-
-	// Mock planet positions (in a real app, this would use astronomical calculations)
-	planets := map[string]interface{}{
-		"sun":     map[string]string{"sign": sunSign, "degree": "15°23'"},
-		"moon":    map[string]string{"sign": moonSign, "degree": "7°45'"},
-		"mercury": map[string]string{"sign": "Virgo", "degree": "22°10'"},
-		"venus":   map[string]string{"sign": "Libra", "degree": "3°30'"},
-		"mars":    map[string]string{"sign": "Sagittarius", "degree": "18°15'"},
+	// Calculate accurate astrological data
+	chartData, err := s.calculationService.CalculateBirthChart(
+		data.BirthDate,
+		s.parseBirthTime(data.BirthTime),
+		data.Latitude,
+		data.Longitude,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate birth chart: %w", err)
 	}
 
-	planetsJSON, _ := json.Marshal(planets)
-
-	// Mock house cusps
-	houses := map[string]string{
-		"1":  "0° Aries",
-		"2":  "30° Aries",
-		"3":  "60° Taurus",
-		"4":  "90° Gemini",
-		"5":  "120° Cancer",
-		"6":  "150° Leo",
-		"7":  "180° Virgo",
-		"8":  "210° Libra",
-		"9":  "240° Scorpio",
-		"10": "270° Sagittarius",
-		"11": "300° Capricorn",
-		"12": "330° Aquarius",
-	}
-
-	housesJSON, _ := json.Marshal(houses)
-
-	// Mock aspects
-	aspects := []map[string]interface{}{
-		{"planet1": "sun", "planet2": "moon", "aspect": "trine", "orb": 2.5},
-		{"planet1": "venus", "planet2": "mars", "aspect": "conjunction", "orb": 1.2},
-	}
-
-	aspectsJSON, _ := json.Marshal(aspects)
+	// Convert to JSON for storage
+	planetsJSON, _ := json.Marshal(chartData.Planets)
+	housesJSON, _ := json.Marshal(chartData.Houses)
+	aspectsJSON, _ := json.Marshal(chartData.Aspects)
+	yogasJSON, _ := json.Marshal(chartData.Yogas)
 
 	chart := &database.BirthChart{
-		UserID:     data.UserID,
-		SunSign:    sunSign,
-		MoonSign:   moonSign,
-		RisingSign: risingSign,
-		Planets:    string(planetsJSON),
-		Houses:     string(housesJSON),
-		Aspects:    string(aspectsJSON),
+		UserID:            data.UserID,
+		SunSign:           chartData.SunSign,
+		MoonSign:          chartData.MoonSign,
+		RisingSign:        chartData.RisingSign,
+		Nakshatra:         chartData.Nakshatra,
+		NakshatraPad:      chartData.NakshatraPad,
+		Ayanamsha:         0, // TODO: Implement Ayanamsha calculation
+		Ascendant:         chartData.Ascendant,
+		Midheaven:         chartData.Midheaven,
+		Planets:           string(planetsJSON),
+		Houses:            string(housesJSON),
+		Aspects:           string(aspectsJSON),
+		Yogas:             string(yogasJSON),
+		CalculationMethod: "Placidus",
 	}
 
 	if err := s.astrologyRepo.CreateBirthChart(chart); err != nil {
@@ -125,20 +116,20 @@ func (s *AstrologyService) GetUserBirthCharts(userID uuid.UUID) ([]*database.Bir
 	return s.astrologyRepo.GetBirthChartsByUserID(userID)
 }
 
-// GetDailyHoroscope gets the daily horoscope for a sign
-func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, error) {
+// GetHoroscope gets horoscope for a sign and type
+func (s *AstrologyService) GetHoroscope(sign, horoscopeType string) (*database.Horoscope, error) {
 	// Check if today's horoscope exists
-	horoscope, err := s.astrologyRepo.GetHoroscope(sign, constants.HoroscopeTypeDaily)
+	horoscope, err := s.astrologyRepo.GetHoroscope(sign, horoscopeType)
 	if err == nil {
 		return horoscope, nil
 	}
 
-	// If not found, generate a new one (in a real app, this might come from an AI service)
+	// If not found, generate a new one
 	horoscope = &database.Horoscope{
 		Sign:         sign,
-		Type:         constants.HoroscopeTypeDaily,
+		Type:         horoscopeType,
 		Date:         time.Now().Truncate(24 * time.Hour),
-		Content:      s.generateDailyHoroscope(sign),
+		Content:      s.generateHoroscope(sign, horoscopeType),
 		LoveRating:   constants.DefaultLoveRating,
 		MoneyRating:  constants.DefaultMoneyRating,
 		HealthRating: constants.DefaultHealthRating,
@@ -149,6 +140,11 @@ func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, 
 	}
 
 	return horoscope, nil
+}
+
+// GetDailyHoroscope gets the daily horoscope for a sign (backward compatibility)
+func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, error) {
+	return s.GetHoroscope(sign, constants.HoroscopeTypeDaily)
 }
 
 // fetchOllamaPrediction calls Ollama /api/predictions for advice text
@@ -205,107 +201,81 @@ func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) 
 	return "", fmt.Errorf("unexpected ollama output format")
 }
 
-func (s *AstrologyService) generateDailyHoroscope(sign string) string {
-	prompt := fmt.Sprintf("Write a friendly and concise daily horoscope for %s. Include advice for love, money, and health, with wise but realistic language.", sign)
+func (s *AstrologyService) generateHoroscope(sign, horoscopeType string) string {
+	var prompt string
+
+	switch horoscopeType {
+	case constants.HoroscopeTypeDaily:
+		prompt = fmt.Sprintf("Write a concise daily horoscope for %s. Include advice for love, money, and health, with realistic language.", sign)
+	case constants.HoroscopeTypeWeekly:
+		prompt = fmt.Sprintf("Write a detailed weekly horoscope for %s. Cover career, relationships, health, and spiritual growth for the coming week.", sign)
+	case constants.HoroscopeTypeMonthly:
+		prompt = fmt.Sprintf("Write a comprehensive monthly horoscope for %s. Include major themes, opportunities, challenges, and advice for the entire month.", sign)
+	case constants.HoroscopeTypeYearly:
+		prompt = fmt.Sprintf("Write an annual horoscope for %s. Cover major life areas including career, relationships, health, and personal growth for the year ahead.", sign)
+	case constants.HoroscopeTypeLove:
+		prompt = fmt.Sprintf("Write a focused love and relationship horoscope for %s. Include romantic opportunities, relationship advice, and emotional guidance.", sign)
+	default:
+		prompt = fmt.Sprintf("Write a friendly and concise daily horoscope for %s. Include advice for love, money, and health.", sign)
+	}
+
 	if text, err := s.fetchOllamaPrediction(prompt); err == nil && text != "" {
 		return text
 	}
 
 	// fallback if Ollama is unavailable
-	return fmt.Sprintf("Today brings new opportunities for %s. Trust your intuition and embrace change. Your natural %s energy will guide you to success.", sign, s.getSignElement(sign))
+	return s.generateFallbackHoroscope(sign, horoscopeType)
+}
+
+func (s *AstrologyService) generateFallbackHoroscope(sign, horoscopeType string) string {
+	element := s.getSignElement(sign)
+
+	switch horoscopeType {
+	case constants.HoroscopeTypeWeekly:
+		return fmt.Sprintf("This week brings new opportunities for %s. Trust your intuition and embrace change. Your natural %s energy will guide you to success in relationships and career.", sign, element)
+	case constants.HoroscopeTypeMonthly:
+		return fmt.Sprintf("This month focuses on growth and stability for %s. Pay attention to your health and relationships. Your %s nature will help you navigate challenges successfully.", sign, element)
+	case constants.HoroscopeTypeYearly:
+		return fmt.Sprintf("This year promises growth and new beginnings for %s. Focus on building strong foundations in career and relationships. Your %s energy will bring success through perseverance.", sign, element)
+	case constants.HoroscopeTypeLove:
+		return fmt.Sprintf("Love brings warmth and connection for %s this week. Open your heart to new possibilities. Your %s nature attracts meaningful relationships.", sign, element)
+	default: // daily
+		return fmt.Sprintf("Today brings new opportunities for %s. Trust your intuition and embrace change. Your natural %s energy will guide you to success.", sign, s.getSignElement(sign))
+	}
 }
 
 // CheckCompatibility checks compatibility between two birth charts
 func (s *AstrologyService) CheckCompatibility(chartID1, chartID2 uuid.UUID) (map[string]interface{}, error) {
-	chart1, err := s.astrologyRepo.GetBirthChart(chartID1)
+	result, err := s.compatibilityService.CheckCompatibility(chartID1, chartID2)
 	if err != nil {
 		return nil, err
 	}
-
-	chart2, err := s.astrologyRepo.GetBirthChart(chartID2)
-	if err != nil {
-		return nil, err
-	}
-
-	// Simple compatibility calculation (in a real app, this would be more complex)
-	compatibility := s.calculateCompatibility(chart1, chart2)
 
 	return map[string]interface{}{
-		"chart1":        chart1,
-		"chart2":        chart2,
-		"compatibility": compatibility,
+		"overall_score":      result.OverallScore,
+		"varna_score":        result.VarnaScore,
+		"vashya_score":       result.VashyaScore,
+		"tara_score":         result.TaraScore,
+		"yoni_score":         result.YoniScore,
+		"graha_maitri_score": result.GrahaMaitriScore,
+		"gana_score":         result.GanaScore,
+		"bhakut_score":       result.BhakutScore,
+		"nadi_score":         result.NadiScore,
+		"analysis":           result.Analysis,
+		"chart1":             result.Chart1,
+		"chart2":             result.Chart2,
 	}, nil
 }
 
-// Helper functions for astrological calculations
-
-func (s *AstrologyService) calculateSunSign(birthDate time.Time) string {
-	month := birthDate.Month()
-	day := birthDate.Day()
-
-	switch month {
-	case 1: // January
-		if day <= 19 {
-			return constants.Capricorn
-		}
-		return constants.Aquarius
-	case 2: // February
-		if day <= 18 {
-			return constants.Aquarius
-		}
-		return constants.Pisces
-	case 3: // March
-		if day <= 20 {
-			return constants.Pisces
-		}
-		return constants.Aries
-	case 4: // April
-		if day <= 19 {
-			return constants.Aries
-		}
-		return constants.Taurus
-	case 5: // May
-		if day <= 20 {
-			return constants.Taurus
-		}
-		return constants.Gemini
-	case 6: // June
-		if day <= 20 {
-			return constants.Gemini
-		}
-		return constants.Cancer
-	case 7: // July
-		if day <= 22 {
-			return constants.Cancer
-		}
-		return constants.Leo
-	case 8: // August
-		if day <= 22 {
-			return constants.Leo
-		}
-		return constants.Virgo
-	case 9: // September
-		if day <= 22 {
-			return constants.Virgo
-		}
-		return constants.Libra
-	case 10: // October
-		if day <= 22 {
-			return constants.Libra
-		}
-		return constants.Scorpio
-	case 11: // November
-		if day <= 21 {
-			return constants.Scorpio
-		}
-		return constants.Sagittarius
-	case 12: // December
-		if day <= 21 {
-			return constants.Sagittarius
-		}
-		return constants.Capricorn
+// parseBirthTime parses birth time string to time.Time
+func (s *AstrologyService) parseBirthTime(birthTime string) time.Time {
+	// Parse time in HH:MM format
+	parsed, err := time.Parse("15:04", birthTime)
+	if err != nil {
+		// Default to noon if parsing fails
+		return time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC)
 	}
-	return "Unknown"
+	return parsed
 }
 
 func (s *AstrologyService) calculateMoonSign(birthDate time.Time, birthTime string) string {
@@ -326,20 +296,6 @@ func (s *AstrologyService) getSignElement(sign string) string {
 		constants.Cancer: constants.ElementWatery, constants.Scorpio: constants.ElementWatery, constants.Pisces: constants.ElementWatery,
 	}
 	return elements[sign]
-}
-
-func (s *AstrologyService) calculateCompatibility(chart1, chart2 *database.BirthChart) map[string]interface{} {
-	// Simple compatibility calculation based on sun signs
-	sunSigns := []string{chart1.SunSign, chart2.SunSign}
-
-	// Mock compatibility score
-	score := 75 // Placeholder
-
-	return map[string]interface{}{
-		"score":     score,
-		"summary":   "These signs have good compatibility potential",
-		"sun_signs": sunSigns,
-	}
 }
 
 // GetRemedies generates personalized remedies based on a birth chart

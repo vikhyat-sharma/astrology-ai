@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/services"
 )
 
@@ -102,15 +103,21 @@ func (h *AstrologyHandler) GetBirthChart(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"chart": chart})
 }
 
-// GetDailyHoroscope handles getting daily horoscope
-func (h *AstrologyHandler) GetDailyHoroscope(c *gin.Context) {
-	sign := c.Query("sign")
+// GetHoroscope handles getting horoscopes by type and sign
+func (h *AstrologyHandler) GetHoroscope(c *gin.Context) {
+	sign := c.Param("sign")
+	horoscopeType := c.Query("type")
+
 	if sign == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Sign parameter is required"})
 		return
 	}
 
-	horoscope, err := h.astrologyService.GetDailyHoroscope(sign)
+	if horoscopeType == "" {
+		horoscopeType = constants.HoroscopeTypeDaily
+	}
+
+	horoscope, err := h.astrologyService.GetHoroscope(sign, horoscopeType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
