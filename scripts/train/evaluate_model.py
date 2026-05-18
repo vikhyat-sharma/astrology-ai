@@ -481,7 +481,7 @@ def main():
     print("\nEvaluation Results:")
     for key, value in metrics.items():
         if isinstance(value, float):
-            print(".4f")
+            print(f"{key}: {value:.4f}")
         else:
             print(f"{key}: {value}")
 
