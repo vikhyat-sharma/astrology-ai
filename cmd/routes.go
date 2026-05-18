@@ -42,7 +42,7 @@ func SetupRoutes(router *gin.Engine, authHandler *handlers.AuthHandler, astrolog
 			{
 				astro.POST(constants.BirthChartEndpoint, astrologyHandler.CreateBirthChart)
 				astro.GET(constants.BirthChartEndpoint+"/:id", astrologyHandler.GetBirthChart)
-				astro.GET(constants.DailyHoroscopeEndpoint, astrologyHandler.GetDailyHoroscope)
+				astro.GET(constants.DailyHoroscopeEndpoint+"/:sign", astrologyHandler.GetHoroscope)
 				astro.POST(constants.CompatibilityEndpoint, astrologyHandler.CheckCompatibility)
 				astro.GET(constants.RemediesEndpoint+"/:id", astrologyHandler.GetRemedies)
 			}
