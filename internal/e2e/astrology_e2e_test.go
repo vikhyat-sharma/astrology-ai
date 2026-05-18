@@ -38,7 +38,7 @@ func TestE2ECreateBirthChartAndGetDailyHoroscope(t *testing.T) {
 		c.Set("userID", uuid.New())
 		astrologyHandler.CreateBirthChart(c)
 	})
-	r.GET("/api/v1/astrology/horoscope/daily", astrologyHandler.GetDailyHoroscope)
+	r.GET("/api/v1/astrology/horoscope/daily/:sign", astrologyHandler.GetHoroscope)
 
 	payload := `{"birth_date":"1985-07-23","birth_time":"14:20","birth_place":"NYC","latitude":40.7128,"longitude":-74.0060,"timezone":"America/New_York"}`
 	w := httptest.NewRecorder()
@@ -51,7 +51,7 @@ func TestE2ECreateBirthChartAndGetDailyHoroscope(t *testing.T) {
 	}
 
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/astrology/horoscope/daily?sign=Leo", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/astrology/horoscope/daily/Leo", nil)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
