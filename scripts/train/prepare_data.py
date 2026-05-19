@@ -143,47 +143,30 @@ class AstrologyDataPreparer:
         """Clean and preprocess the data."""
         logger.info("Cleaning data...")
 
+        # Standardize the 'instruction' field - handle both formats
+        if 'instruction' not in df.columns:
+            df['instruction'] = ""
+        
+        # For rows where instruction is empty but input exists, copy input to instruction
+        instruction_mask = (df['instruction'].isna()) | (df['instruction'] == "")
+        df.loc[instruction_mask, 'instruction'] = df.loc[instruction_mask, 'input']
+        
+        # Ensure input is always present but use instruction as the main command
+        if 'input' not in df.columns:
+            df['input'] = ""
+
         # Remove duplicates
         initial_len = len(df)
-        df = df.drop_duplicates(subset=['input', 'output'])
+        df = df.drop_duplicates(subset=['instruction', 'output'], keep='first')
         logger.info(f"Removed {initial_len - len(df)} duplicates")
 
-        # Separate Vedic and general data
-        vedic_mask = df.apply(lambda row: 'vedic_terms' in row or
-                                         (row.get('text', '').startswith(('brihat_', 'phala', 'jataka'))), axis=1)
-        vedic_df = df[vedic_mask]
-        general_df = df[~vedic_mask]
-
-        logger.info(f"Vedic records: {len(vedic_df)}, General records: {len(general_df)}")
-
-        # Apply different filters
-        vedic_config = self.config.get('vedic_astrology', {})
-        vedic_filters = vedic_config.get('quality_filters', {})
-
-        # Filter Vedic data (allow empty inputs)
-        vedic_min_input = vedic_filters.get('min_input_length', 0)
-        vedic_min_output = self.config['data']['filters']['min_output_length']
-        vedic_df = vedic_df[vedic_df['input'].str.len() >= vedic_min_input]
-        vedic_df = vedic_df[vedic_df['output'].str.len() >= vedic_min_output]
-
-        # Filter general data (use standard filters)
-        min_input_len = self.config['data']['filters']['min_input_length']
-        min_output_len = self.config['data']['filters']['min_output_length']
-        general_df = general_df[general_df['input'].str.len() >= min_input_len]
-        general_df = general_df[general_df['output'].str.len() >= min_output_len]
-
-        # Combine back
-        df = pd.concat([vedic_df, general_df], ignore_index=True)
-
-        # Apply additional Vedic quality filters
-        df = self._apply_vedic_quality_filters(df)
-
-        logger.info(f"Filtered data: {len(df)} records remaining")
-
-        # Add metadata
-        df['input_length'] = df['input'].str.len()
-        df['output_length'] = df['output'].str.len()
-        df['created_at'] = datetime.now().isoformat()
+        # Add metadata if not present
+        if 'input_length' not in df.columns:
+            df['input_length'] = df['instruction'].astype(str).str.len()
+        if 'output_length' not in df.columns:
+            df['output_length'] = df['output'].astype(str).str.len()
+        if 'created_at' not in df.columns:
+            df['created_at'] = datetime.now().isoformat()
 
         return df
 
@@ -256,7 +239,13 @@ class AstrologyDataPreparer:
                 except Exception:
                     signs = []
 
-            instruction = row['input'] if pd.notna(row['input']) else ""
+            # Use instruction field if available, otherwise fall back to input
+            instruction = row.get('instruction', "")
+            if pd.isna(instruction) or instruction == "":
+                instruction = row.get('input', "")
+            if pd.isna(instruction):
+                instruction = ""
+                
             output = row['output'] if pd.notna(row['output']) else ""
             category = row.get('category', 'general')
             if pd.isna(category):
@@ -269,9 +258,9 @@ class AstrologyDataPreparer:
                 "category": category,
                 "signs": signs,
                 "metadata": {
-                    "input_length": int(row['input_length']),
-                    "output_length": int(row['output_length']),
-                    "created_at": row['created_at']
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": row['created_at'] if 'created_at' in row else datetime.now().isoformat()
                 }
             }
             formatted_data.append(example)
