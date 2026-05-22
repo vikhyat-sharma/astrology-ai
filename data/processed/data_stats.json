@@ -1,46 +1,50 @@
 {
-  "total_records": 145,
+  "total_records": 177,
   "splits": {
-    "train": 116,
-    "validation": 14,
-    "test": 15
+    "train": 141,
+    "validation": 18,
+    "test": 18
   },
   "categories": {
     "train": {
-      "compatibility_analysis": 1,
-      "yoga_identification": 5,
-      "daily_horoscope": 31,
-      "house_analysis": 12,
-      "weekly_horoscope": 11,
-      "birth_chart_reading": 4,
-      "remedies": 12,
+      "muhurta_recommendation": 5,
+      "dasha_prediction": 7,
+      "remedies": 13,
+      "daily_horoscope": 30,
       "planetary_analysis": 9,
-      "compatibility": 13,
-      "monthly_horoscope": 9,
-      "dasha_prediction": 8,
+      "compatibility": 14,
+      "weekly_horoscope": 8,
+      "yoga_identification": 6,
+      "house_analysis": 10,
+      "transit_analysis": 5,
+      "monthly_horoscope": 11,
+      "nakshatra_compatibility": 5,
+      "gemstone_recommendation": 9,
+      "birth_chart_reading": 5,
+      "dosha_analysis": 3,
       "remedial_advice": 1
     },
     "validation": {
-      "house_analysis": 2,
-      "daily_horoscope": 3,
-      "monthly_horoscope": 2,
-      "weekly_horoscope": 1,
+      "gemstone_recommendation": 3,
+      "daily_horoscope": 4,
+      "dasha_prediction": 2,
+      "weekly_horoscope": 2,
+      "compatibility_analysis": 1,
+      "nakshatra_compatibility": 1,
+      "house_analysis": 1,
       "remedies": 2,
-      "planetary_analysis": 2,
-      "compatibility": 1,
-      "predictive_methods": 1
+      "dosha_analysis": 1,
+      "compatibility": 1
     },
     "test": {
-      "monthly_horoscope": 2,
-      "planetary_analysis": 2,
-      "yoga_identification": 1,
-      "compatibility": 1,
-      "remedies": 1,
-      "dasha_prediction": 2,
-      "weekly_horoscope": 1,
       "daily_horoscope": 4,
-      "birth_chart_reading": 1
+      "house_analysis": 3,
+      "planetary_analysis": 4,
+      "weekly_horoscope": 3,
+      "monthly_horoscope": 2,
+      "dasha_prediction": 1,
+      "predictive_methods": 1
     }
   },
-  "created_at": "2026-05-09T16:44:52.856967"
+  "created_at": "2026-05-20T10:14:56.528487"
 }
