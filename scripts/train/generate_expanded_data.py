@@ -380,6 +380,168 @@ class AstrologyDataGenerator:
 
         return dasha_data
 
+    def generate_nakshatra_compatibility(self) -> List[Dict[str, Any]]:
+        """Generate nakshatra-based compatibility examples."""
+        nakshatra_data = []
+
+        pairs = [
+            ("Aries", "Libra"),
+            ("Taurus", "Scorpio"),
+            ("Gemini", "Sagittarius"),
+            ("Cancer", "Capricorn"),
+            ("Leo", "Aquarius"),
+            ("Virgo", "Pisces")
+        ]
+
+        for sign1, sign2 in pairs:
+            instruction = f"Explain nakshatra compatibility between {sign1} and {sign2}."
+            output = f"{sign1} and {sign2} have deep nakshatra compatibility based on traditional Vedic astrology. Their nakshatras support emotional bonding, shared values, and karmic lessons. This compatibility analysis includes Nadi, Bhakoot, and Gana factors, showing strengths in communication, romance, and long-term harmony. When aligned, their relationship can grow through mutual respect and spiritual growth."
+
+            nakshatra_data.append({
+                "instruction": instruction,
+                "input": "",
+                "output": output,
+                "category": "nakshatra_compatibility",
+                "signs": [sign1, sign2],
+                "metadata": {
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+
+        return nakshatra_data
+
+    def generate_transit_analysis(self) -> List[Dict[str, Any]]:
+        """Generate transit analysis examples."""
+        transit_data = []
+
+        transits = [
+            ("Jupiter", "Aries"),
+            ("Saturn", "Capricorn"),
+            ("Rahu", "Gemini"),
+            ("Ketu", "Sagittarius"),
+            ("Venus", "Taurus")
+        ]
+
+        for planet, sign in transits:
+            instruction = f"What does the transit of {planet} through {sign} mean?"
+            output = f"The transit of {planet} through {sign} brings important changes for people with that sign. This transit affects career, relationships, and spiritual growth. In Vedic astrology, this movement activates the house ruled by {sign} and influences the planet's natural qualities. It can bring opportunities for wealth, lessons in discipline, and a stronger connection to dharma."
+
+            transit_data.append({
+                "instruction": instruction,
+                "input": "",
+                "output": output,
+                "category": "transit_analysis",
+                "signs": [sign],
+                "metadata": {
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+
+        return transit_data
+
+    def generate_muhurta_recommendations(self) -> List[Dict[str, Any]]:
+        """Generate muhurta and panchang recommendation examples."""
+        muhurta_data = []
+
+        events = [
+            "starting a new business",
+            "getting married",
+            "buying a house",
+            "traveling abroad",
+            "signing important documents"
+        ]
+
+        for event in events:
+            instruction = f"Recommend a muhurta for {event}."
+            output = f"For {event}, choose a muhurta that avoids Rahu Kaal, Yamaganda, and Gulika. Favor a time when the Moon is in a benefic nakshatra and the ascendant is strong. This panchang-based recommendation ensures auspicious energy, success, and stability for the new venture."
+
+            muhurta_data.append({
+                "instruction": instruction,
+                "input": "",
+                "output": output,
+                "category": "muhurta_recommendation",
+                "signs": [],
+                "metadata": {
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+
+        return muhurta_data
+
+    def generate_gemstone_recommendations(self) -> List[Dict[str, Any]]:
+        """Generate gemstone and remedy recommendation examples."""
+        gemstone_data = []
+
+        gemstones = {
+            "Aries": "Red Coral",
+            "Taurus": "Emerald",
+            "Gemini": "Emerald",
+            "Cancer": "Pearl",
+            "Leo": "Ruby",
+            "Virgo": "Emerald",
+            "Libra": "Diamond",
+            "Scorpio": "Coral",
+            "Sagittarius": "Yellow Sapphire",
+            "Capricorn": "Blue Sapphire",
+            "Aquarius": "Amethyst",
+            "Pisces": "Moonstone"
+        }
+
+        for sign, gem in gemstones.items():
+            instruction = f"Which gemstone is best for {sign}, and why?"
+            output = f"The best gemstone for {sign} is {gem}, because it strengthens the ruling planet and balances the sign's energy. In Vedic astrology, wearing {gem} helps align planetary forces, supports health, and enhances prosperity. Choose a purified stone, consult a qualified astrologer, and wear it on the recommended day for best results."
+
+            gemstone_data.append({
+                "instruction": instruction,
+                "input": "",
+                "output": output,
+                "category": "gemstone_recommendation",
+                "signs": [sign],
+                "metadata": {
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+
+        return gemstone_data
+
+    def generate_dosha_analysis(self) -> List[Dict[str, Any]]:
+        """Generate dosha and astrological affliction examples."""
+        dosha_data = []
+
+        doshas = [
+            ("Mangal Dosha", "Mars", "marriage timing and compatibility"),
+            ("Kala Sarpa Dosha", "Rahu and Ketu", "karma and life challenges"),
+            ("Shani Dosha", "Saturn", "delays and discipline"),
+            ("Nadi Dosha", "Nakshatras", "compatibility and health")
+        ]
+
+        for name, planet, focus in doshas:
+            instruction = f"Explain {name} and its effects on {focus}."
+            output = f"{name} is a classical Vedic astrology condition related to {focus}. It can bring lessons, delays, and opportunities for spiritual growth. Understanding {name} helps manage life events through remedies, mantras, and lifestyle adjustments. A correct assessment requires a detailed birth chart analysis and proper timing."
+
+            dosha_data.append({
+                "instruction": instruction,
+                "input": "",
+                "output": output,
+                "category": "dosha_analysis",
+                "signs": [],
+                "metadata": {
+                    "input_length": len(instruction),
+                    "output_length": len(output),
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+
+        return dosha_data
+
     def generate_all_data(self) -> List[Dict[str, Any]]:
         """Generate all training data."""
         all_data = []
@@ -395,7 +557,12 @@ class AstrologyDataGenerator:
             self.generate_house_analysis,
             self.generate_yoga_analysis,
             self.generate_birth_chart_readings,
-            self.generate_dasha_predictions
+            self.generate_dasha_predictions,
+            self.generate_nakshatra_compatibility,
+            self.generate_transit_analysis,
+            self.generate_muhurta_recommendations,
+            self.generate_gemstone_recommendations,
+            self.generate_dosha_analysis
         ]
 
         for generator in generators:
