@@ -17,6 +17,17 @@ The training dataset now includes **145 high-quality examples** covering:
 - **Birth Chart Readings**: 4 examples of chart interpretations
 - **Dasha Predictions**: 8 examples of timing system predictions
 
+## ✨ New Vedic Astrology Features Added
+The generator now includes richer Vedic-specific functionality to move closer to Astrosage-style coverage:
+
+- **Nakshatra Compatibility Analysis**: compatibility by nakshatra, Nadi, Bhakoot and Gana factors
+- **Transit Analysis**: planetary transit effects for key sign-planet combinations
+- **Muhurat & Panchang Recommendations**: auspicious timing guidance for weddings, business, travel, and more
+- **Gemstone Recommendations**: recommended stones by sign and their Vedic rationale
+- **Dosha Analysis**: explanations for Mangal Dosha, Kala Sarpa Dosha, Shani Dosha, Nadi Dosha, etc.
+
+These new categories are now included in the expanded training data generator and will strengthen Vedic astrology coverage.
+
 ## 🚀 Quick Start
 
 ### Option 1: Complete Automated Pipeline (Recommended)
