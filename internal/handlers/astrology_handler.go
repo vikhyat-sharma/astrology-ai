@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -219,4 +220,22 @@ func (h *AstrologyHandler) GetRemedies(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"remedies": remedies})
+}
+
+// GetCurrentTransits handles real-time transit tracking
+func (h *AstrologyHandler) GetCurrentTransits(c *gin.Context) {
+	lat := 0.0
+	lng := 0.0
+	if l := c.Query("latitude"); l != "" {
+		fmt.Sscanf(l, "%f", &lat)
+	}
+	if l := c.Query("longitude"); l != "" {
+		fmt.Sscanf(l, "%f", &lng)
+	}
+	transits, err := h.astrologyService.GetCurrentTransits(lat, lng)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"transits": transits, "timestamp": time.Now().UTC()})
 }
