@@ -15,6 +15,34 @@ import (
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
 )
 
+// GetCurrentTransits returns current planetary transits (positions)
+func (s *AstrologyService) GetCurrentTransits(latitude, longitude float64) ([]map[string]interface{}, error) {
+	now := time.Now().UTC()
+	jd := s.calculationService.calculateJulianDay(now)
+	planets, err := s.calculationService.calculatePlanetPositions(jd)
+	if err != nil {
+		return nil, err
+	}
+	houses := s.calculationService.calculateHouses(jd, latitude, longitude)
+	planets = s.calculationService.assignPlanetsToHouses(planets, houses)
+	var result []map[string]interface{}
+	for _, p := range planets {
+		result = append(result, map[string]interface{}{
+			"planet":        p.Name,
+			"sign":          p.Sign,
+			"degree":        p.Degree,
+			"longitude":     p.Longitude,
+			"house":         p.House,
+			"retrograde":    p.Retrograde,
+			"exalted":       p.Exalted,
+			"debilitated":   p.Debilitated,
+			"own_sign":      p.OwnSign,
+			"friendly_sign": p.FriendlySign,
+		})
+	}
+	return result, nil
+}
+
 // AstrologyService handles astrology business logic
 type AstrologyService struct {
 	astrologyRepo        interfaces.AstrologyRepositoryInterface
