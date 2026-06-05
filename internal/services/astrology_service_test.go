@@ -95,6 +95,30 @@ func TestGenerateDailyHoroscopeFallback(t *testing.T) {
 	}
 }
 
+func TestGetCurrentTransits(t *testing.T) {
+	service := NewAstrologyServiceWithClient(nil, "", "", nil)
+
+	transits, err := service.GetCurrentTransits(12.9716, 77.5946)
+	if err != nil {
+		t.Fatalf("GetCurrentTransits failed: %v", err)
+	}
+
+	if len(transits) == 0 {
+		t.Fatal("expected at least one transit result")
+	}
+
+	first := transits[0]
+	if first["planet"] == "" {
+		t.Fatal("expected planet name in transit result")
+	}
+	if first["sign"] == "" {
+		t.Fatal("expected sign in transit result")
+	}
+	if _, ok := first["house"]; !ok {
+		t.Fatal("expected house in transit result")
+	}
+}
+
 func TestCalculateCompatibility(t *testing.T) {
 	mockRepo := &mocks.MockAstrologyRepository{
 		GetBirthChartFunc: func(id uuid.UUID) (*database.BirthChart, error) {
