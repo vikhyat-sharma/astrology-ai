@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
 	"gorm.io/driver/sqlite"
@@ -64,7 +65,7 @@ func TestGetDailyHoroscopeIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetDailyHoroscope failed: %v", err)
 	}
-	if horoscope.Sign != "Gemini" || horoscope.Type != "daily" {
+	if horoscope.Sign != constants.Gemini || horoscope.Type != constants.HoroscopeTypeDaily {
 		t.Fatalf("unexpected horoscope: %v", horoscope)
 	}
 	if horoscope.Content == "" {
