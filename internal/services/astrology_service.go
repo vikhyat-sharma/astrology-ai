@@ -298,7 +298,7 @@ func (s *AstrologyService) CheckCompatibility(chartID1, chartID2 uuid.UUID) (map
 // parseBirthTime parses birth time string to time.Time
 func (s *AstrologyService) parseBirthTime(birthTime string) time.Time {
 	// Parse time in HH:MM format
-	parsed, err := time.Parse("15:04", birthTime)
+	parsed, err := time.Parse(constants.TimeFormat, birthTime)
 	if err != nil {
 		// Default to noon if parsing fails
 		return time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC)
