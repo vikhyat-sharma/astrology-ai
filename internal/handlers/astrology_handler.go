@@ -186,6 +186,58 @@ func (h *AstrologyHandler) CheckCompatibility(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"compatibility": compatibility})
 }
 
+// PersonalizedHoroscopeRequest represents the request payload for advanced personalization
+type PersonalizedHoroscopeRequest struct {
+	ChartID    string   `json:"chart_id" binding:"required"`
+	Goals      string   `json:"goals,omitempty"`
+	FocusAreas []string `json:"focus_areas,omitempty"`
+	Tone       string   `json:"tone,omitempty"`
+}
+
+// GeneratePersonalizedHoroscope handles advanced ML personalization for horoscopes
+func (h *AstrologyHandler) GeneratePersonalizedHoroscope(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req PersonalizedHoroscopeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	chartID, err := uuid.Parse(req.ChartID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID"})
+		return
+	}
+
+	chart, err := h.astrologyService.GetBirthChart(chartID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	if chart.UserID != userID.(uuid.UUID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	personalized, err := h.astrologyService.GeneratePersonalizedHoroscope(chart, services.PersonalizationPreferences{
+		Goals:      req.Goals,
+		FocusAreas: req.FocusAreas,
+		Tone:       req.Tone,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"personalized_horoscope": personalized})
+}
+
 // GetRemedies handles getting remedies based on a birth chart
 func (h *AstrologyHandler) GetRemedies(c *gin.Context) {
 	userID, exists := c.Get("userID")
