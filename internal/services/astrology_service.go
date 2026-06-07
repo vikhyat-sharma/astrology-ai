@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -327,6 +328,78 @@ func (s *AstrologyService) getSignElement(sign string) string {
 }
 
 // GetRemedies generates personalized remedies based on a birth chart
+type PersonalizationPreferences struct {
+	Goals      string   `json:"goals,omitempty"`
+	FocusAreas []string `json:"focus_areas,omitempty"`
+	Tone       string   `json:"tone,omitempty"`
+}
+
+func (s *AstrologyService) GeneratePersonalizedHoroscope(chart *database.BirthChart, preferences PersonalizationPreferences) (map[string]interface{}, error) {
+	prompt := s.buildPersonalizedHoroscopePrompt(chart, preferences)
+
+	horoscopeText, err := s.fetchOllamaPrediction(prompt)
+	if err != nil {
+		horoscopeText = s.generatePersonalizedHoroscopeFallback(chart, preferences)
+	}
+
+	return map[string]interface{}{
+		"chart_id":                chart.ID,
+		"sun_sign":                chart.SunSign,
+		"personalized_horoscope":  horoscopeText,
+		"personalization_details": preferences,
+		"generated_at":            time.Now(),
+	}, nil
+}
+
+func (s *AstrologyService) buildPersonalizedHoroscopePrompt(chart *database.BirthChart, preferences PersonalizationPreferences) string {
+	focusAreas := "general life guidance"
+	if len(preferences.FocusAreas) > 0 {
+		focusAreas = fmt.Sprintf("focus areas: %s", strings.Join(preferences.FocusAreas, ", "))
+	}
+
+	tone := preferences.Tone
+	if tone == "" {
+		tone = "supportive, uplifting, and grounded"
+	}
+
+	return fmt.Sprintf(`You are an expert astrology AI assistant. Use the birth chart and personalization details to write a deeply tailored horoscope.
+
+Birth Chart Data:
+- Sun Sign: %s
+- Moon Sign: %s
+- Rising Sign: %s
+- Planets: %s
+- Houses: %s
+- Aspects: %s
+
+Personalization:
+- Goals: %s
+- %s
+- Tone: %s
+
+Provide a horoscope that speaks to the user's individual journey, offers practical guidance, and uses clear, positive language.
+`, chart.SunSign, chart.MoonSign, chart.RisingSign, chart.Planets, chart.Houses, chart.Aspects, preferences.Goals, focusAreas, tone)
+}
+
+func (s *AstrologyService) generatePersonalizedHoroscopeFallback(chart *database.BirthChart, preferences PersonalizationPreferences) string {
+	focusAreas := "general life guidance"
+	if len(preferences.FocusAreas) > 0 {
+		focusAreas = strings.Join(preferences.FocusAreas, ", ")
+	}
+
+	tone := preferences.Tone
+	if tone == "" {
+		tone = "supportive and balanced"
+	}
+
+	return fmt.Sprintf(`Personalized horoscope for %s with a %s tone.
+
+Focus: %s
+Goals: %s
+
+As you move through the day, your chart shows an emphasis on inner growth and practical progress. Lean into your natural strengths, honor your emotions, and take small actions that support your long-term goals.`, chart.SunSign, tone, focusAreas, preferences.Goals)
+}
+
 func (s *AstrologyService) GetRemedies(chart *database.BirthChart) (map[string]interface{}, error) {
 	// Generate remedies using AI based on the birth chart
 	prompt := fmt.Sprintf(`Based on this birth chart, provide personalized astrological remedies and recommendations:
