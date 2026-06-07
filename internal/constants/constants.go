@@ -35,20 +35,21 @@ const (
 
 // API paths
 const (
-	APIV1Prefix            = "/api/v1"
-	AuthPrefix             = "/auth"
-	UserPrefix             = "/user"
-	AstrologyPrefix        = "/astrology"
-	HealthEndpoint         = "/health"
-	RegisterEndpoint       = "/register"
-	LoginEndpoint          = "/login"
-	ProfileEndpoint        = "/profile"
-	BirthInfoEndpoint      = "/birth-info"
-	BirthChartEndpoint     = "/birth-chart"
-	DailyHoroscopeEndpoint = "/horoscope/daily"
-	HoroscopeEndpoint      = "/horoscope"
-	CompatibilityEndpoint  = "/compatibility"
-	RemediesEndpoint       = "/remedies"
+	APIV1Prefix                   = "/api/v1"
+	AuthPrefix                    = "/auth"
+	UserPrefix                    = "/user"
+	AstrologyPrefix               = "/astrology"
+	HealthEndpoint                = "/health"
+	RegisterEndpoint              = "/register"
+	LoginEndpoint                 = "/login"
+	ProfileEndpoint               = "/profile"
+	BirthInfoEndpoint             = "/birth-info"
+	BirthChartEndpoint            = "/birth-chart"
+	DailyHoroscopeEndpoint        = "/horoscope/daily"
+	HoroscopeEndpoint             = "/horoscope"
+	CompatibilityEndpoint         = "/compatibility"
+	RemediesEndpoint              = "/remedies"
+	PersonalizedHoroscopeEndpoint = "/personalized-horoscope"
 )
 
 // Content types
