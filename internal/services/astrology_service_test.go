@@ -370,6 +370,81 @@ func TestGetRemedies(t *testing.T) {
 	}
 }
 
+func TestGeneratePersonalizedHoroscopeWithMock(t *testing.T) {
+	chart := &database.BirthChart{
+		ID:         uuid.New(),
+		UserID:     uuid.New(),
+		SunSign:    constants.Gemini,
+		MoonSign:   constants.Aries,
+		RisingSign: constants.Leo,
+		Planets:    `{"sun": {"sign": "Gemini", "degree": "12°10'"}}`,
+		Houses:     `{"1": "10° Gemini"}`,
+		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "sextile"}]`,
+	}
+
+	mockHTTPClient := &mocks.MockHTTPClient{
+		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: constants.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized horoscope focused on growth and clarity."}`))),
+			}, nil
+		},
+	}
+
+	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
+
+	result, err := service.GeneratePersonalizedHoroscope(chart, PersonalizationPreferences{
+		Goals:      "Build confidence and improve career focus",
+		FocusAreas: []string{"career", "relationships"},
+		Tone:       "motivating",
+	})
+	if err != nil {
+		t.Fatalf("GeneratePersonalizedHoroscope failed: %v", err)
+	}
+
+	if result["chart_id"] != chart.ID {
+		t.Fatalf("expected chart_id %v, got %v", chart.ID, result["chart_id"])
+	}
+
+	if result["personalized_horoscope"].(string) != "Personalized horoscope focused on growth and clarity." {
+		t.Fatalf("expected AI horoscope text, got %v", result["personalized_horoscope"])
+	}
+}
+
+func TestGeneratePersonalizedHoroscopeFallback(t *testing.T) {
+	chart := &database.BirthChart{
+		ID:         uuid.New(),
+		UserID:     uuid.New(),
+		SunSign:    constants.Pisces,
+		MoonSign:   constants.Cancer,
+		RisingSign: constants.Scorpio,
+		Planets:    `{"sun": {"sign": "Pisces", "degree": "05°20'"}}`,
+		Houses:     `{"1": "25° Pisces"}`,
+		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "conjunction"}]`,
+	}
+
+	mockHTTPClient := &mocks.MockHTTPClient{
+		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
+			return nil, errors.New("network error")
+		},
+	}
+
+	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
+
+	result, err := service.GeneratePersonalizedHoroscope(chart, PersonalizationPreferences{
+		Goals:      "Find balance and deepen intuition",
+		FocusAreas: []string{"spirituality", "wellness"},
+		Tone:       "gentle",
+	})
+	if err != nil {
+		t.Fatalf("GeneratePersonalizedHoroscope failed: %v", err)
+	}
+
+	if result["personalized_horoscope"].(string) == "" {
+		t.Fatal("expected fallback horoscope text")
+	}
+}
+
 func TestGetRemediesFallback(t *testing.T) {
 	chart := &database.BirthChart{
 		ID:         uuid.New(),
