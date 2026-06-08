@@ -35,6 +35,7 @@ This project provides a modular REST API for astrology-based services powered by
 
 * Ollama-powered inference
 * Custom fine-tuned astrology models
+* Advanced ML personalization for horoscopes and remedies
 * Domain-specific evaluation metrics
 
 ### 🧪 Engineering Quality
@@ -173,6 +174,7 @@ make docker-compose-up
 * `GET /api/v1/astrology/horoscope/daily?sign=Leo`
 * `POST /api/v1/astrology/compatibility`
 * `GET /api/v1/astrology/remedies/:id`
+* `POST /api/v1/astrology/personalized-horoscope`
 
 ### Health
 
