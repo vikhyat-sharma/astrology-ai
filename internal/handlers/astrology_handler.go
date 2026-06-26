@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/graphql-go/graphql"
+	graphqlhandler "github.com/graphql-go/handler"
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/services"
 )
@@ -290,4 +292,63 @@ func (h *AstrologyHandler) GetCurrentTransits(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"transits": transits, "timestamp": time.Now().UTC()})
+}
+
+// GraphQLHandler returns a gin.HandlerFunc that serves a minimal GraphQL schema
+// exposing a `horoscope(sign: String!, type: String)` query backed by the
+// existing horoscope generation service.
+func (h *AstrologyHandler) GraphQLHandler() gin.HandlerFunc {
+
+	// Define GraphQL types
+	horoscopeType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Horoscope",
+		Fields: graphql.Fields{
+			"id":      &graphql.Field{Type: graphql.String},
+			"sign":    &graphql.Field{Type: graphql.String},
+			"type":    &graphql.Field{Type: graphql.String},
+			"content": &graphql.Field{Type: graphql.String},
+			"date":    &graphql.Field{Type: graphql.String},
+		},
+	})
+
+	// Root query
+	rootQuery := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Query",
+		Fields: graphql.Fields{
+			"horoscope": &graphql.Field{
+				Type: horoscopeType,
+				Args: graphql.FieldConfigArgument{
+					"sign": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"type": &graphql.ArgumentConfig{Type: graphql.String},
+				},
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					sign, _ := p.Args["sign"].(string)
+					htype, _ := p.Args["type"].(string)
+					if htype == "" {
+						htype = constants.HoroscopeTypeDaily
+					}
+					horoscope, err := h.astrologyService.GetHoroscope(sign, htype)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]interface{}{
+						"id":      horoscope.ID.String(),
+						"sign":    horoscope.Sign,
+						"type":    horoscope.Type,
+						"content": horoscope.Content,
+						"date":    horoscope.Date.Format(time.RFC3339),
+					}, nil
+				},
+			},
+		},
+	})
+
+	schema, _ := graphql.NewSchema(graphql.SchemaConfig{Query: rootQuery})
+
+	hdl := graphqlhandler.New(&graphqlhandler.Config{
+		Schema: &schema,
+		Pretty: true,
+	})
+
+	return gin.WrapH(hdl)
 }
