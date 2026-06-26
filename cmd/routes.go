@@ -46,6 +46,8 @@ func SetupRoutes(router *gin.Engine, authHandler *handlers.AuthHandler, astrolog
 				astro.POST(constants.CompatibilityEndpoint, astrologyHandler.CheckCompatibility)
 				astro.GET(constants.RemediesEndpoint+"/:id", astrologyHandler.GetRemedies)
 				astro.POST(constants.PersonalizedHoroscopeEndpoint, astrologyHandler.GeneratePersonalizedHoroscope)
+				// Minimal GraphQL endpoint
+				astro.POST("/graphql", astrologyHandler.GraphQLHandler())
 				// Real-time transit tracking
 				astro.GET("/transits/now", astrologyHandler.GetCurrentTransits)
 			}
