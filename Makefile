@@ -27,10 +27,10 @@ test-coverage: ## Run tests with coverage report
 
 # Development commands
 run: ## Run the application
-	go run cmd/main.go
+	go run ./cmd/
 
 build: ## Build the application
-	go build -o bin/astrology-ai cmd/main.go
+	go build -o bin/astrology-ai ./cmd/
 
 clean: ## Clean build artifacts
 	rm -rf bin/
@@ -135,7 +135,7 @@ dev: ## Start development server with hot reload (requires air)
 
 # Production build
 prod-build: clean deps ## Build for production
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/astrology-ai cmd/main.go
+	CGO_ENABLED=0 GOOS=linux go build -a -trimpath -ldflags="-s -w" -o bin/astrology-ai ./cmd/
 
 # Help for specific targets
 help-test: ## Show testing help
