@@ -1,15 +1,15 @@
 package config
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 )
 
-// Config holds all configuration for the application
+// Config holds all configuration for the application.
 type Config struct {
 	DatabaseURL string
 	JWTSecret   string
@@ -17,39 +17,74 @@ type Config struct {
 	Environment string
 	OllamaURL   string
 	OllamaModel string
+	AllowedOrigins []string
 }
 
-// Load loads configuration from environment variables
-func Load() *Config {
-	// Load .env file if it exists
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+// Load loads configuration from environment variables.
+// Returns an error if any required secret is missing or invalid.
+func Load() (*Config, error) {
+	// Best-effort: load .env file if present (ignored in production containers).
+	_ = godotenv.Load()
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return nil, errors.New("JWT_SECRET environment variable is required")
+	}
+	if len(jwtSecret) < 32 {
+		return nil, fmt.Errorf("JWT_SECRET must be at least 32 characters, got %d", len(jwtSecret))
 	}
 
-	config := &Config{
-		DatabaseURL: getEnv("DATABASE_URL", constants.DefaultDatabaseURL),
-		JWTSecret:   getEnv("JWT_SECRET", constants.DefaultJWTSecret),
-		Port:        getEnv("PORT", constants.DefaultPort),
-		Environment: getEnv("ENVIRONMENT", constants.DefaultEnvironment),
-		OllamaURL:   getEnv("OLLAMA_URL", constants.DefaultOllamaURL),
-		OllamaModel: getEnv("OLLAMA_MODEL", constants.DefaultOllamaModel),
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return nil, errors.New("DATABASE_URL environment variable is required")
 	}
 
-	// Warn about default secrets in development
-	if config.Environment == constants.DefaultEnvironment && config.JWTSecret == constants.DefaultJWTSecret {
-		log.Println("WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable for security.")
-	}
-	if config.Environment == constants.DefaultEnvironment && strings.Contains(config.DatabaseURL, "password") {
-		log.Println("WARNING: Using default database password. Set DATABASE_URL environment variable for security.")
+	allowedOrigins := []string{}
+	if o := os.Getenv("ALLOWED_ORIGINS"); o != "" {
+		for _, origin := range splitTrim(o, ",") {
+			if origin != "" {
+				allowedOrigins = append(allowedOrigins, origin)
+			}
+		}
 	}
 
-	return config
+	return &Config{
+		DatabaseURL:    dbURL,
+		JWTSecret:      jwtSecret,
+		Port:           getEnvOrDefault("PORT", constants.DefaultPort),
+		Environment:    getEnvOrDefault("ENVIRONMENT", constants.DefaultEnvironment),
+		OllamaURL:      getEnvOrDefault("OLLAMA_URL", constants.DefaultOllamaURL),
+		OllamaModel:    getEnvOrDefault("OLLAMA_MODEL", constants.DefaultOllamaModel),
+		AllowedOrigins: allowedOrigins,
+	}, nil
 }
 
-// getEnv gets an environment variable or returns a default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+func getEnvOrDefault(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
 	return defaultValue
+}
+
+func splitTrim(s, sep string) []string {
+	var out []string
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i:i+len(sep)] == sep {
+			part := trim(s[start:i])
+			out = append(out, part)
+			start = i + len(sep)
+		}
+	}
+	return out
+}
+
+func trim(s string) string {
+	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t') {
+		s = s[1:]
+	}
+	for len(s) > 0 && (s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
+		s = s[:len(s)-1]
+	}
+	return s
 }
