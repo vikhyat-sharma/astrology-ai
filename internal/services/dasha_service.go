@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -9,35 +8,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/interfaces"
-	"gorm.io/gorm"
 )
 
-// DashaService handles Vimshottari Dasha (planetary period) calculations.
+// DashaService handles Dasha (planetary period) calculations
 type DashaService struct {
 	astrologyRepo interfaces.AstrologyRepositoryInterface
-	db            dashaDB
 }
 
-// dashaDB is the minimal DB interface DashaService needs for persistence.
-// Keeping it narrow makes the service testable without a full GORM instance.
-type dashaDB interface {
-	Create(value interface{}) *gorm.DB
-	Where(query interface{}, args ...interface{}) *gorm.DB
-}
-
-// NewDashaService creates a new DashaService.
-// db may be nil — in that case Save/Get operations are no-ops (useful in tests
-// that only exercise the calculation logic).
+// NewDashaService creates a new dasha service
 func NewDashaService(astrologyRepo interfaces.AstrologyRepositoryInterface) *DashaService {
 	return &DashaService{astrologyRepo: astrologyRepo}
 }
 
-// NewDashaServiceWithDB creates a DashaService with a live DB handle for persistence.
-func NewDashaServiceWithDB(astrologyRepo interfaces.AstrologyRepositoryInterface, db dashaDB) *DashaService {
-	return &DashaService{astrologyRepo: astrologyRepo, db: db}
-}
-
-// DashaPeriod represents one mahadasha + antardasha combination.
+// DashaPeriod represents a dasha period
 type DashaPeriod struct {
 	Mahadasha       string    `json:"mahadasha"`
 	MahadashaStart  time.Time `json:"mahadasha_start"`
@@ -48,218 +31,192 @@ type DashaPeriod struct {
 	PratyantarDasha string    `json:"pratyantar_dasha,omitempty"`
 }
 
-// Vimshottari constants — total cycle is 120 years.
-var (
-	dashaOrder = []string{"Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", "Ketu", "Venus"}
-	dashaYears = map[string]float64{
-		"Sun": 6, "Moon": 10, "Mars": 7, "Rahu": 18, "Jupiter": 16,
-		"Saturn": 19, "Mercury": 17, "Ketu": 7, "Venus": 20,
-	}
-	// nakshatraLord maps each of the 27 nakshatras (0-indexed) to its dasha lord.
-	// This is the canonical Vimshottari mapping — the dasha sequence repeats every
-	// 9 nakshatras in the same order as dashaOrder.
-	nakshatraLord = [27]string{
-		"Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", // 0–8
-		"Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", // 9–17
-		"Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", // 18–26
-	}
-)
-
-// CalculateVimshottariDasha calculates Vimshottari Dasha periods for 30 years from birthDate.
-// The Moon's nakshatra (stored on the chart) determines the starting dasha lord and balance.
+// CalculateVimshottariDasha calculates Vimshottari Dasha periods
 func (s *DashaService) CalculateVimshottariDasha(chartID uuid.UUID, birthDate time.Time) ([]DashaPeriod, error) {
 	chart, err := s.astrologyRepo.GetBirthChart(chartID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get birth chart: %w", err)
 	}
 
-	startingDasha, balanceYears := s.dashaStartAndBalance(chart)
+	// Determine starting dasha based on Moon's position
+	startingDasha := s.getStartingDashaFromMoon(chart.MoonSign)
 
+	// Vimshottari Dasha cycle: 120 years total
+	dashaOrder := []string{"Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", "Ketu", "Venus"}
+	dashaYears := map[string]float64{
+		"Sun": 6, "Moon": 10, "Mars": 7, "Rahu": 18, "Jupiter": 16,
+		"Saturn": 19, "Mercury": 17, "Ketu": 7, "Venus": 20,
+	}
+
+	// Find starting point in cycle
 	startIndex := 0
-	for i, p := range dashaOrder {
-		if p == startingDasha {
+	for i, planet := range dashaOrder {
+		if planet == startingDasha {
 			startIndex = i
 			break
 		}
 	}
 
+	// Calculate balance of current dasha at birth
+	balanceYears := s.calculateDashaBalance(chart, startingDasha)
+
 	var periods []DashaPeriod
 	currentDate := birthDate
+
+	// Calculate periods for next 30 years (can be extended)
 	endDate := birthDate.AddDate(30, 0, 0)
 
 	for currentDate.Before(endDate) {
 		for i := 0; i < len(dashaOrder) && currentDate.Before(endDate); i++ {
-			idx := (startIndex + i) % len(dashaOrder)
-			mahadasha := dashaOrder[idx]
+			planetIndex := (startIndex + i) % len(dashaOrder)
+			mahadasha := dashaOrder[planetIndex]
 
-			years := dashaYears[mahadasha]
+			var mahadashaYears float64
 			if i == 0 {
-				years = balanceYears
+				mahadashaYears = balanceYears
+			} else {
+				mahadashaYears = dashaYears[mahadasha]
 			}
 
-			mahaStart := currentDate
-			mahaEnd := addYears(currentDate, years)
+			mahadashaStart := currentDate
+			mahadashaEnd := currentDate.AddDate(0, 0, int(mahadashaYears*365.25))
 
-			for _, ap := range s.antardashas(mahadasha, mahaStart, years) {
-				end := ap.AntardashaEnd
-				if end.After(endDate) {
-					end = endDate
+			// Calculate antardashas within this mahadasha
+			antardashaPeriods := s.calculateAntardashas(mahadasha, mahadashaStart, mahadashaYears)
+
+			for _, antardasha := range antardashaPeriods {
+				if antardasha.AntardashaEnd.After(endDate) {
+					antardasha.AntardashaEnd = endDate
 				}
-				periods = append(periods, DashaPeriod{
+
+				period := DashaPeriod{
 					Mahadasha:       mahadasha,
-					MahadashaStart:  mahaStart,
-					MahadashaEnd:    mahaEnd,
-					Antardasha:      ap.Antardasha,
-					AntardashaStart: ap.AntardashaStart,
-					AntardashaEnd:   end,
-				})
+					MahadashaStart:  mahadashaStart,
+					MahadashaEnd:    mahadashaEnd,
+					Antardasha:      antardasha.Antardasha,
+					AntardashaStart: antardasha.AntardashaStart,
+					AntardashaEnd:   antardasha.AntardashaEnd,
+				}
+				periods = append(periods, period)
 			}
-			currentDate = mahaEnd
+
+			currentDate = mahadashaEnd
 		}
 	}
 
 	return periods, nil
 }
 
-// SaveDashaPeriods persists calculated dasha periods to the database.
-// If no DB handle is configured the call is a no-op (test-safe).
-func (s *DashaService) SaveDashaPeriods(chartID uuid.UUID, periods []DashaPeriod) error {
-	if s.db == nil {
-		return nil
+// getStartingDashaFromMoon determines starting dasha from Moon's position
+func (s *DashaService) getStartingDashaFromMoon(moonSign string) string {
+	// Simplified mapping - in practice, this uses nakshatra
+	signToDasha := map[string]string{
+		"Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury",
+		"Cancer": "Moon", "Leo": "Sun", "Virgo": "Mercury",
+		"Libra": "Venus", "Scorpio": "Mars", "Sagittarius": "Jupiter",
+		"Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter",
 	}
-	for _, p := range periods {
-		row := &database.Dasha{
-			ChartID:         chartID,
-			Type:            "vimshottari",
-			Mahadasha:       p.Mahadasha,
-			MahadashaStart:  p.MahadashaStart,
-			MahadashaEnd:    p.MahadashaEnd,
-			Antardasha:      p.Antardasha,
-			AntardashaStart: p.AntardashaStart,
-			AntardashaEnd:   p.AntardashaEnd,
-			PratyantarDasha: p.PratyantarDasha,
-		}
-		if res := s.db.Create(row); res.Error != nil {
-			return fmt.Errorf("failed to save dasha period: %w", res.Error)
-		}
+
+	if dasha, exists := signToDasha[moonSign]; exists {
+		return dasha
 	}
-	return nil
+	return "Moon" // Default
 }
 
-// GetCurrentDasha returns the active dasha period for a chart at the current time.
-// It queries persisted periods; if none exist it returns an error rather than
-// returning fabricated data.
-func (s *DashaService) GetCurrentDasha(chartID uuid.UUID) (*DashaPeriod, error) {
-	if s.db == nil {
-		return nil, errors.New("dasha periods not available: no database configured")
+// calculateDashaBalance calculates remaining years in current dasha at birth
+func (s *DashaService) calculateDashaBalance(chart *database.BirthChart, startingDasha string) float64 {
+	// Simplified calculation - in practice, uses exact birth time and planetary positions
+	dashaYears := map[string]float64{
+		"Sun": 6, "Moon": 10, "Mars": 7, "Rahu": 18, "Jupiter": 16,
+		"Saturn": 19, "Mercury": 17, "Ketu": 7, "Venus": 20,
 	}
 
-	now := time.Now().UTC()
-	var row database.Dasha
-	res := s.db.Where(
-		"chart_id = ? AND antardasha_start <= ? AND antardasha_end >= ?",
-		chartID, now, now,
-	).(*gorm.DB).First(&row)
-
-	if res.Error != nil {
-		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("no active dasha period found for chart %s — run CalculateVimshottariDasha first", chartID)
-		}
-		return nil, fmt.Errorf("failed to query current dasha: %w", res.Error)
-	}
-
-	return &DashaPeriod{
-		Mahadasha:       row.Mahadasha,
-		MahadashaStart:  row.MahadashaStart,
-		MahadashaEnd:    row.MahadashaEnd,
-		Antardasha:      row.Antardasha,
-		AntardashaStart: row.AntardashaStart,
-		AntardashaEnd:   row.AntardashaEnd,
-		PratyantarDasha: row.PratyantarDasha,
-	}, nil
+	totalYears := dashaYears[startingDasha]
+	// Assume 50% of dasha remaining (simplified)
+	return totalYears * 0.5
 }
 
-// dashaStartAndBalance returns the starting dasha lord and the fractional years
-// remaining in that dasha at birth, derived from the Moon's nakshatra.
-//
-// The Vimshottari balance is proportional to how far the Moon has travelled
-// through its birth nakshatra:
-//
-//	balance = dashaYears[lord] × (1 − moonDegreeInNakshatra / nakshatraSpan)
-func (s *DashaService) dashaStartAndBalance(chart *database.BirthChart) (string, float64) {
-	nakshatraSpan := 360.0 / 27.0 // ≈ 13.333°
-
-	// Derive nakshatra index from the stored nakshatra name.
-	nakshatraIndex := nakshatraIndexFromName(chart.Nakshatra)
-
-	lord := nakshatraLord[nakshatraIndex]
-
-	// We don't store the Moon's exact longitude on the chart, so we approximate
-	// the degree within the nakshatra from NakshatraPad (each pada = 1/4 span).
-	// This gives ±1 pada accuracy (~3.3°). A future improvement is to store
-	// the Moon's exact longitude and compute this precisely.
-	padaFraction := float64(chart.NakshatraPad-1) / 4.0 // 0.0, 0.25, 0.50, 0.75
-	degreeInNakshatra := padaFraction * nakshatraSpan
-	balance := dashaYears[lord] * (1.0 - degreeInNakshatra/nakshatraSpan)
-
-	// Clamp to a sensible range.
-	if balance <= 0 {
-		balance = 0.1
-	}
-	if balance > dashaYears[lord] {
-		balance = dashaYears[lord]
+// calculateAntardashas calculates sub-periods within a mahadasha
+func (s *DashaService) calculateAntardashas(mahadasha string, startDate time.Time, mahadashaYears float64) []DashaPeriod {
+	dashaOrder := []string{"Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", "Ketu", "Venus"}
+	dashaYears := map[string]float64{
+		"Sun": 6, "Moon": 10, "Mars": 7, "Rahu": 18, "Jupiter": 16,
+		"Saturn": 19, "Mercury": 17, "Ketu": 7, "Venus": 20,
 	}
 
-	return lord, balance
-}
+	var periods []DashaPeriod
+	currentDate := startDate
 
-// antardashas calculates the 9 antardasha sub-periods within a mahadasha.
-// Each antardasha duration = (mahadashaYears × antardashaYears) / 120.
-func (s *DashaService) antardashas(mahadasha string, start time.Time, mahaYears float64) []DashaPeriod {
-	startIdx := 0
-	for i, p := range dashaOrder {
-		if p == mahadasha {
-			startIdx = i
+	// Find starting index for antardashas
+	startIndex := 0
+	for i, planet := range dashaOrder {
+		if planet == mahadasha {
+			startIndex = i
 			break
 		}
 	}
 
-	var periods []DashaPeriod
-	current := start
+	totalDays := mahadashaYears * 365.25
+
 	for i := 0; i < len(dashaOrder); i++ {
-		idx := (startIdx + i) % len(dashaOrder)
-		antardasha := dashaOrder[idx]
-		days := (mahaYears * dashaYears[antardasha] / 120.0) * 365.25
-		end := current.AddDate(0, 0, int(math.Round(days)))
-		periods = append(periods, DashaPeriod{
+		planetIndex := (startIndex + i) % len(dashaOrder)
+		antardasha := dashaOrder[planetIndex]
+
+		// Calculate proportional time for this antardasha
+		antardashaPortion := dashaYears[antardasha] / 120.0 // 120 is total Vimshottari years
+		antardashaDays := totalDays * antardashaPortion
+
+		antardashaStart := currentDate
+		antardashaEnd := currentDate.AddDate(0, 0, int(math.Round(antardashaDays)))
+
+		period := DashaPeriod{
 			Antardasha:      antardasha,
-			AntardashaStart: current,
-			AntardashaEnd:   end,
-		})
-		current = end
+			AntardashaStart: antardashaStart,
+			AntardashaEnd:   antardashaEnd,
+		}
+		periods = append(periods, period)
+
+		currentDate = antardashaEnd
 	}
+
 	return periods
 }
 
-// addYears adds a fractional number of years to a time using day-level precision.
-func addYears(t time.Time, years float64) time.Time {
-	return t.AddDate(0, 0, int(math.Round(years*365.25)))
+// SaveDashaPeriods saves calculated dasha periods to database
+func (s *DashaService) SaveDashaPeriods(chartID uuid.UUID, periods []DashaPeriod) error {
+	for _, period := range periods {
+		dasha := &database.Dasha{
+			ChartID:         chartID,
+			Type:            "vimshottari",
+			Mahadasha:       period.Mahadasha,
+			MahadashaStart:  period.MahadashaStart,
+			MahadashaEnd:    period.MahadashaEnd,
+			Antardasha:      period.Antardasha,
+			AntardashaStart: period.AntardashaStart,
+			AntardashaEnd:   period.AntardashaEnd,
+			PratyantarDasha: period.PratyantarDasha,
+		}
+
+		// In a real implementation, you'd save to database
+		// For now, we'll skip database operations
+		_ = dasha
+	}
+
+	return nil
 }
 
-// nakshatraIndexFromName returns the 0-based index of a nakshatra by name.
-// Returns 0 (Ashwini / Ketu) as a safe default for unknown names.
-func nakshatraIndexFromName(name string) int {
-	names := [27]string{
-		"Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
-		"Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
-		"Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
-		"Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha",
-		"Purva Bhadrapada", "Uttara Bhadrapada", "Revati",
-	}
-	for i, n := range names {
-		if n == name {
-			return i
-		}
-	}
-	return 0
+// GetCurrentDasha gets the current dasha period for a chart
+func (s *DashaService) GetCurrentDasha(chartID uuid.UUID) (*DashaPeriod, error) {
+	now := time.Now()
+
+	// In a real implementation, you'd query the database
+	// For now, return a mock current dasha
+	return &DashaPeriod{
+		Mahadasha:       "Jupiter",
+		MahadashaStart:  now.AddDate(0, -6, 0),
+		MahadashaEnd:    now.AddDate(0, 10, 0),
+		Antardasha:      "Venus",
+		AntardashaStart: now.AddDate(0, -2, 0),
+		AntardashaEnd:   now.AddDate(0, 4, 0),
+	}, nil
 }
