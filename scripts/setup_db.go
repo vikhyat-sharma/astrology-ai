@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/lib/pq" // Import pq driver for sql.Open
+	_ "github.com/lib/pq"
 	"github.com/vikhyat-sharma/astrology-ai/internal/config"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
-	_ "gorm.io/driver/postgres" // Import postgres driver
+	_ "gorm.io/driver/postgres"
 )
 
 func main() {
 	// Load configuration
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("configuration error: %v", err)
+	}
 
 	fmt.Println("=== Database Setup Script ===")
 	fmt.Printf("Database URL: %s\n", cfg.DatabaseURL)
