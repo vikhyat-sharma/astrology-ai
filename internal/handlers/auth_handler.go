@@ -6,33 +6,34 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/vikhyat-sharma/astrology-ai/internal/services"
+	"github.com/vikhyat-sharma/astrology-ai/internal/database"
+	"github.com/vikhyat-sharma/astrology-ai/internal/ports"
 )
 
-// AuthHandler handles authentication HTTP requests
+// AuthHandler handles authentication HTTP requests.
 type AuthHandler struct {
-	authService *services.AuthService
+	authService ports.AuthService
 }
 
-// NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+// NewAuthHandler creates a new AuthHandler.
+func NewAuthHandler(authService ports.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// RegisterRequest represents the registration request payload
+// RegisterRequest is the registration request payload.
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Password string `json:"password" binding:"required,min=8"`
 	Name     string `json:"name" binding:"required"`
 }
 
-// LoginRequest represents the login request payload
+// LoginRequest is the login request payload.
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
-// Register handles user registration
+// Register handles user registration.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -40,23 +41,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.RegisterUser(req.Email, req.Password, req.Name)
+	user, err := h.authService.RegisterUser(c.Request.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User registered successfully",
-		"user": gin.H{
-			"id":    user.ID,
-			"email": user.Email,
-			"name":  user.Name,
-		},
+		"message": "user registered successfully",
+		"user":    userView(user),
 	})
 }
 
-// Login handles user login
+// Login handles user login.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,70 +61,44 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.authService.AuthenticateUser(req.Email, req.Password)
+	token, user, err := h.authService.AuthenticateUser(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
+		"message": "login successful",
 		"token":   token,
-		"user": gin.H{
-			"id":    user.ID,
-			"email": user.Email,
-			"name":  user.Name,
-		},
+		"user":    userView(user),
 	})
 }
 
-// GetProfile handles getting user profile
+// GetProfile handles fetching the authenticated user's profile.
 func (h *AuthHandler) GetProfile(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-
-	user, err := h.authService.GetUserByID(userID.(uuid.UUID))
+	userID := mustUserID(c)
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"id":          user.ID,
-			"email":       user.Email,
-			"name":        user.Name,
-			"birth_date":  user.BirthDate,
-			"birth_time":  user.BirthTime,
-			"birth_place": user.BirthPlace,
-			"latitude":    user.Latitude,
-			"longitude":   user.Longitude,
-			"timezone":    user.Timezone,
-		},
-	})
+	c.JSON(http.StatusOK, gin.H{"user": profileView(user)})
 }
 
-// UpdateProfileRequest represents the update profile request payload
+// UpdateProfileRequest uses pointer fields so zero values are distinguishable from absent fields.
 type UpdateProfileRequest struct {
-	Name       string  `json:"name"`
-	BirthDate  string  `json:"birth_date"` // ISO 8601 date string
-	BirthTime  string  `json:"birth_time"`
-	BirthPlace string  `json:"birth_place"`
-	Latitude   float64 `json:"latitude"`
-	Longitude  float64 `json:"longitude"`
-	Timezone   string  `json:"timezone"`
+	Name       *string  `json:"name"`
+	BirthDate  *string  `json:"birth_date"`
+	BirthTime  *string  `json:"birth_time"`
+	BirthPlace *string  `json:"birth_place"`
+	Latitude   *float64 `json:"latitude"`
+	Longitude  *float64 `json:"longitude"`
+	Timezone   *string  `json:"timezone"`
 }
 
-// UpdateProfile handles updating user profile
+// UpdateProfile handles partial profile updates.
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
 	var req UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -135,54 +106,52 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.GetUserByID(userID.(uuid.UUID))
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Update user fields
-	if req.Name != "" {
-		user.Name = req.Name
+	if req.Name != nil {
+		user.Name = *req.Name
 	}
-	if req.BirthDate != "" {
-		// Parse birth date (simplified - in production, use proper date parsing)
-		user.BirthDate, _ = time.Parse("2006-01-02", req.BirthDate)
+	if req.BirthDate != nil {
+		parsed, err := time.Parse("2006-01-02", *req.BirthDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid birth_date format, expected YYYY-MM-DD"})
+			return
+		}
+		user.BirthDate = parsed
 	}
-	if req.BirthTime != "" {
-		user.BirthTime = req.BirthTime
+	if req.BirthTime != nil {
+		user.BirthTime = *req.BirthTime
 	}
-	if req.BirthPlace != "" {
-		user.BirthPlace = req.BirthPlace
+	if req.BirthPlace != nil {
+		user.BirthPlace = *req.BirthPlace
 	}
-	user.Latitude = req.Latitude
-	user.Longitude = req.Longitude
-	if req.Timezone != "" {
-		user.Timezone = req.Timezone
+	// Only update coordinates when explicitly provided — prevents silent zeroing.
+	if req.Latitude != nil {
+		user.Latitude = *req.Latitude
+	}
+	if req.Longitude != nil {
+		user.Longitude = *req.Longitude
+	}
+	if req.Timezone != nil {
+		user.Timezone = *req.Timezone
 	}
 
-	if err := h.authService.UpdateUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.authService.UpdateUser(c.Request.Context(), user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile updated successfully",
-		"user": gin.H{
-			"id":          user.ID,
-			"email":       user.Email,
-			"name":        user.Name,
-			"birth_date":  user.BirthDate,
-			"birth_time":  user.BirthTime,
-			"birth_place": user.BirthPlace,
-			"latitude":    user.Latitude,
-			"longitude":   user.Longitude,
-			"timezone":    user.Timezone,
-		},
+		"message": "profile updated successfully",
+		"user":    profileView(user),
 	})
 }
 
-// BirthInfoRequest represents the birth info request payload
+// BirthInfoRequest is the birth info update payload.
 type BirthInfoRequest struct {
 	BirthDate  string  `json:"birth_date" binding:"required"`
 	BirthTime  string  `json:"birth_time" binding:"required"`
@@ -192,13 +161,9 @@ type BirthInfoRequest struct {
 	Timezone   string  `json:"timezone" binding:"required"`
 }
 
-// UpdateBirthInfo handles updating date/time/location details
+// UpdateBirthInfo handles updating birth date/time/location.
 func (h *AuthHandler) UpdateBirthInfo(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
 	var req BirthInfoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -206,15 +171,15 @@ func (h *AuthHandler) UpdateBirthInfo(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.GetUserByID(userID.(uuid.UUID))
+	birthDate, err := time.Parse("2006-01-02", req.BirthDate)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid birth_date format, expected YYYY-MM-DD"})
 		return
 	}
 
-	birthDate, err := time.Parse("2006-01-02", req.BirthDate)
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid birth date format. Use YYYY-MM-DD"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -225,10 +190,41 @@ func (h *AuthHandler) UpdateBirthInfo(c *gin.Context) {
 	user.Longitude = req.Longitude
 	user.Timezone = req.Timezone
 
-	if err := h.authService.UpdateUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.authService.UpdateUser(c.Request.Context(), user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update birth info"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Birth info updated successfully", "user": user})
+	c.JSON(http.StatusOK, gin.H{"message": "birth info updated successfully", "user": profileView(user)})
+}
+
+// mustUserID extracts the authenticated user ID from the Gin context.
+// Panics if the middleware did not set it — which is a programming error, not a runtime error.
+func mustUserID(c *gin.Context) uuid.UUID {
+	v, _ := c.Get("userID")
+	return v.(uuid.UUID)
+}
+
+// userView returns a safe subset of user fields for registration/login responses.
+func userView(u *database.User) gin.H {
+	return gin.H{
+		"id":    u.ID,
+		"email": u.Email,
+		"name":  u.Name,
+	}
+}
+
+// profileView returns the full profile (no password).
+func profileView(u *database.User) gin.H {
+	return gin.H{
+		"id":          u.ID,
+		"email":       u.Email,
+		"name":        u.Name,
+		"birth_date":  u.BirthDate,
+		"birth_time":  u.BirthTime,
+		"birth_place": u.BirthPlace,
+		"latitude":    u.Latitude,
+		"longitude":   u.Longitude,
+		"timezone":    u.Timezone,
+	}
 }
