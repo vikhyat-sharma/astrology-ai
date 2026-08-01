@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,120 +9,117 @@ import (
 	"github.com/google/uuid"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthService handles authentication business logic
+// AuthService handles authentication business logic.
 type AuthService struct {
 	userRepo  *repositories.UserRepository
-	jwtSecret string
+	jwtSecret []byte
 }
 
-// NewAuthService creates a new auth service
+// NewAuthService creates a new AuthService.
 func NewAuthService(userRepo *repositories.UserRepository, jwtSecret string) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
-		jwtSecret: jwtSecret,
+		jwtSecret: []byte(jwtSecret),
 	}
 }
 
-// RegisterUser registers a new user
-func (s *AuthService) RegisterUser(email, password, name string) (*database.User, error) {
-	// Check if user already exists
-	existingUser, _ := s.userRepo.GetByEmail(email)
-	if existingUser != nil {
+// claims is the typed JWT payload. Using typed claims avoids the fragile
+// map[string]interface{} type assertion pattern.
+type claims struct {
+	jwt.RegisteredClaims
+	UserID uuid.UUID `json:"uid"`
+}
+
+// RegisterUser registers a new user.
+func (s *AuthService) RegisterUser(ctx context.Context, email, password, name string) (*database.User, error) {
+	existing, _ := s.userRepo.GetByEmail(ctx, email)
+	if existing != nil {
 		return nil, errors.New("user already exists")
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashed, err := hashPassword(password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
 	user := &database.User{
 		Email:    email,
-		Password: string(hashedPassword),
+		Password: hashed,
 		Name:     name,
 	}
-
-	if err := s.userRepo.Create(user); err != nil {
+	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
-
 	return user, nil
 }
 
-// AuthenticateUser authenticates a user and returns a JWT token
-func (s *AuthService) AuthenticateUser(email, password string) (string, *database.User, error) {
-	user, err := s.userRepo.GetByEmail(email)
+// AuthenticateUser validates credentials and returns a signed JWT.
+func (s *AuthService) AuthenticateUser(ctx context.Context, email, password string) (string, *database.User, error) {
+	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
+		// Return a generic message to prevent user enumeration.
 		return "", nil, errors.New("invalid credentials")
 	}
 
-	// Check password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if err := comparePassword(user.Password, password); err != nil {
 		return "", nil, errors.New("invalid credentials")
 	}
 
-	// Generate JWT token
 	token, err := s.generateToken(user.ID)
 	if err != nil {
 		return "", nil, err
 	}
-
 	return token, user, nil
 }
 
-// GetUserByID gets a user by ID
-func (s *AuthService) GetUserByID(id uuid.UUID) (*database.User, error) {
-	return s.userRepo.GetByID(id)
+// GetUserByID retrieves a user by their UUID.
+func (s *AuthService) GetUserByID(ctx context.Context, id uuid.UUID) (*database.User, error) {
+	return s.userRepo.GetByID(ctx, id)
 }
 
-// UpdateUser updates user information
-func (s *AuthService) UpdateUser(user *database.User) error {
-	return s.userRepo.Update(user)
+// UpdateUser persists changes to a user record.
+func (s *AuthService) UpdateUser(ctx context.Context, user *database.User) error {
+	return s.userRepo.Update(ctx, user)
 }
 
-// generateToken generates a JWT token for the user
-func (s *AuthService) generateToken(userID uuid.UUID) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.jwtSecret))
-}
-
-// ValidateToken validates a JWT token and returns the user ID
+// ValidateToken parses and validates a JWT, returning the embedded user ID.
+// This method is intentionally context-free because it is called from middleware
+// before the request context is fully established.
 func (s *AuthService) ValidateToken(tokenString string) (uuid.UUID, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	parsed, err := jwt.ParseWithClaims(tokenString, &claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(s.jwtSecret), nil
+		return s.jwtSecret, nil
 	})
-
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userIDStr, ok := claims["user_id"].(string)
-		if !ok {
-			return uuid.Nil, errors.New("invalid token claims")
-		}
-
-		userID, err := uuid.Parse(userIDStr)
-		if err != nil {
-			return uuid.Nil, errors.New("invalid user ID in token")
-		}
-
-		return userID, nil
+	c, ok := parsed.Claims.(*claims)
+	if !ok || !parsed.Valid {
+		return uuid.Nil, errors.New("invalid token claims")
 	}
+	if c.UserID == uuid.Nil {
+		return uuid.Nil, errors.New("token missing user ID")
+	}
+	return c.UserID, nil
+}
 
-	return uuid.Nil, errors.New("invalid token")
+// generateToken creates a signed JWT with a 15-minute expiry.
+func (s *AuthService) generateToken(userID uuid.UUID) (string, error) {
+	now := time.Now()
+	c := claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "astrology-ai",
+			Subject:   userID.String(),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
+			ID:        uuid.NewString(), // jti — unique per token, enables future revocation
+		},
+		UserID: userID,
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString(s.jwtSecret)
 }
