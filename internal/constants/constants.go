@@ -73,25 +73,13 @@ const (
 // Ollama API
 const (
 	OllamaPredictionsEndpoint = "/api/predictions"
-	OllamaTimeoutSeconds      = 30
+	OllamaTimeoutSeconds      = 60
 )
 
-// Database defaults (for config)
+// Server defaults (non-secret)
 const (
 	DefaultPort        = "8080"
-	DefaultEnvironment = "development"
-	DefaultJWTSecret   = "your-secret-key"
-	DefaultDatabaseURL = "postgres://postgres:password@localhost:5432/astrology_ai?sslmode=disable"
+	DefaultEnvironment = "production"
 	DefaultOllamaURL   = "http://127.0.0.1:11434"
 	DefaultOllamaModel = "llama3"
-)
-
-// HTTP status codes (wrappers for clarity)
-const (
-	StatusOK                  = 200
-	StatusCreated             = 201
-	StatusBadRequest          = 400
-	StatusUnauthorized        = 401
-	StatusNotFound            = 404
-	StatusInternalServerError = 500
 )
