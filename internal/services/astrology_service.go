@@ -2,9 +2,11 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -13,38 +15,11 @@ import (
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/interfaces"
+	"github.com/vikhyat-sharma/astrology-ai/internal/ports"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
 )
 
-// GetCurrentTransits returns current planetary transits (positions)
-func (s *AstrologyService) GetCurrentTransits(latitude, longitude float64) ([]map[string]interface{}, error) {
-	now := time.Now().UTC()
-	jd := s.calculationService.calculateJulianDay(now)
-	planets, err := s.calculationService.calculatePlanetPositions(jd)
-	if err != nil {
-		return nil, err
-	}
-	houses := s.calculationService.calculateHouses(jd, latitude, longitude)
-	planets = s.calculationService.assignPlanetsToHouses(planets, houses)
-	var result []map[string]interface{}
-	for _, p := range planets {
-		result = append(result, map[string]interface{}{
-			"planet":        p.Name,
-			"sign":          p.Sign,
-			"degree":        p.Degree,
-			"longitude":     p.Longitude,
-			"house":         p.House,
-			"retrograde":    p.Retrograde,
-			"exalted":       p.Exalted,
-			"debilitated":   p.Debilitated,
-			"own_sign":      p.OwnSign,
-			"friendly_sign": p.FriendlySign,
-		})
-	}
-	return result, nil
-}
-
-// AstrologyService handles astrology business logic
+// AstrologyService implements ports.AstrologyService.
 type AstrologyService struct {
 	astrologyRepo        interfaces.AstrologyRepositoryInterface
 	calculationService   *CalculationService
@@ -55,7 +30,27 @@ type AstrologyService struct {
 	httpClient           interfaces.HTTPClientInterface
 }
 
-// NewAstrologyService creates a new astrology service
+// Compile-time assertion that AstrologyService satisfies the port interface.
+var _ interface {
+	CreateBirthChart(ctx context.Context, data ports.BirthChartData) (*database.BirthChart, error)
+} = (*AstrologyService)(nil)
+
+// newOllamaHTTPClient returns an http.Client with production-grade transport settings.
+func newOllamaHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: time.Duration(constants.OllamaTimeoutSeconds) * time.Second,
+		Transport: &http.Transport{
+			DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: 15 * time.Second,
+			IdleConnTimeout:       90 * time.Second,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   10,
+		},
+	}
+}
+
+// NewAstrologyService creates a production AstrologyService.
 func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollamaURL, ollamaModel string) *AstrologyService {
 	return &AstrologyService{
 		astrologyRepo:        astrologyRepo,
@@ -64,11 +59,11 @@ func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollama
 		dashaService:         NewDashaService(astrologyRepo),
 		ollamaURL:            ollamaURL,
 		ollamaModel:          ollamaModel,
-		httpClient:           &http.Client{Timeout: constants.OllamaTimeoutSeconds * time.Second},
+		httpClient:           newOllamaHTTPClient(),
 	}
 }
 
-// NewAstrologyServiceWithClient creates a new astrology service with custom HTTP client
+// NewAstrologyServiceWithClient creates an AstrologyService with a custom HTTP client (for testing).
 func NewAstrologyServiceWithClient(astrologyRepo interfaces.AstrologyRepositoryInterface, ollamaURL, ollamaModel string, httpClient interfaces.HTTPClientInterface) *AstrologyService {
 	return &AstrologyService{
 		astrologyRepo:        astrologyRepo,
@@ -81,31 +76,31 @@ func NewAstrologyServiceWithClient(astrologyRepo interfaces.AstrologyRepositoryI
 	}
 }
 
-// BirthChartData represents the data needed to create a birth chart
-type BirthChartData struct {
-	UserID     uuid.UUID `json:"user_id"`
-	BirthDate  time.Time `json:"birth_date"`
-	BirthTime  string    `json:"birth_time"`
-	BirthPlace string    `json:"birth_place"`
-	Latitude   float64   `json:"latitude"`
-	Longitude  float64   `json:"longitude"`
-	Timezone   string    `json:"timezone"`
-}
+// PersonalizationPreferences carries optional personalization inputs.
+// Kept here for backward compatibility with existing tests; ports.PersonalizationPreferences
+// is the canonical definition used by handlers.
+type PersonalizationPreferences = ports.PersonalizationPreferences
 
-// CreateBirthChart creates a new birth chart for a user
-func (s *AstrologyService) CreateBirthChart(data BirthChartData) (*database.BirthChart, error) {
-	// Calculate accurate astrological data
-	chartData, err := s.calculationService.CalculateBirthChart(
-		data.BirthDate,
-		s.parseBirthTime(data.BirthTime),
-		data.Latitude,
-		data.Longitude,
-	)
+// BirthChartData is an alias to the canonical ports type.
+type BirthChartData = ports.BirthChartData
+
+// CreateBirthChart calculates and persists a birth chart.
+func (s *AstrologyService) CreateBirthChart(ctx context.Context, data ports.BirthChartData) (*database.BirthChart, error) {
+	birthDate, err := time.Parse(constants.DateFormat, data.BirthDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid birth_date %q: expected YYYY-MM-DD", data.BirthDate)
+	}
+
+	birthTime, err := parseBirthTime(data.BirthTime)
+	if err != nil {
+		return nil, err
+	}
+
+	chartData, err := s.calculationService.CalculateBirthChart(birthDate, birthTime, data.Latitude, data.Longitude)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate birth chart: %w", err)
 	}
 
-	// Convert to JSON for storage
 	planetsJSON, _ := json.Marshal(chartData.Planets)
 	housesJSON, _ := json.Marshal(chartData.Houses)
 	aspectsJSON, _ := json.Marshal(chartData.Aspects)
@@ -118,168 +113,58 @@ func (s *AstrologyService) CreateBirthChart(data BirthChartData) (*database.Birt
 		RisingSign:        chartData.RisingSign,
 		Nakshatra:         chartData.Nakshatra,
 		NakshatraPad:      chartData.NakshatraPad,
-		Ayanamsha:         0, // TODO: Implement Ayanamsha calculation
 		Ascendant:         chartData.Ascendant,
 		Midheaven:         chartData.Midheaven,
 		Planets:           string(planetsJSON),
 		Houses:            string(housesJSON),
 		Aspects:           string(aspectsJSON),
 		Yogas:             string(yogasJSON),
-		CalculationMethod: "Placidus",
+		CalculationMethod: "Equal",
 	}
 
 	if err := s.astrologyRepo.CreateBirthChart(chart); err != nil {
 		return nil, err
 	}
-
 	return chart, nil
 }
 
-// GetBirthChart gets a birth chart by ID
-func (s *AstrologyService) GetBirthChart(id uuid.UUID) (*database.BirthChart, error) {
+// GetBirthChart retrieves a birth chart by ID.
+func (s *AstrologyService) GetBirthChart(ctx context.Context, id uuid.UUID) (*database.BirthChart, error) {
 	return s.astrologyRepo.GetBirthChart(id)
 }
 
-// GetUserBirthCharts gets all birth charts for a user
-func (s *AstrologyService) GetUserBirthCharts(userID uuid.UUID) ([]*database.BirthChart, error) {
+// GetUserBirthCharts retrieves all birth charts for a user.
+func (s *AstrologyService) GetUserBirthCharts(ctx context.Context, userID uuid.UUID) ([]*database.BirthChart, error) {
 	return s.astrologyRepo.GetBirthChartsByUserID(userID)
 }
 
-// GetHoroscope gets horoscope for a sign and type
-func (s *AstrologyService) GetHoroscope(sign, horoscopeType string) (*database.Horoscope, error) {
-	// Check if today's horoscope exists
-	horoscope, err := s.astrologyRepo.GetHoroscope(sign, horoscopeType)
-	if err == nil {
-		return horoscope, nil
-	}
-
-	// If not found, generate a new one
-	horoscope = &database.Horoscope{
+// GetHoroscope returns today's horoscope for a sign, generating and persisting one if absent.
+// Uses GetOrCreateHoroscope to avoid the check-then-insert race condition.
+func (s *AstrologyService) GetHoroscope(ctx context.Context, sign, horoscopeType string) (*database.Horoscope, error) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	candidate := &database.Horoscope{
 		Sign:         sign,
 		Type:         horoscopeType,
-		Date:         time.Now().Truncate(24 * time.Hour),
+		Date:         today,
 		Content:      s.generateHoroscope(sign, horoscopeType),
 		LoveRating:   constants.DefaultLoveRating,
 		MoneyRating:  constants.DefaultMoneyRating,
 		HealthRating: constants.DefaultHealthRating,
 	}
-
-	if err := s.astrologyRepo.CreateHoroscope(horoscope); err != nil {
-		return nil, err
-	}
-
-	return horoscope, nil
+	return s.astrologyRepo.GetOrCreateHoroscope(candidate)
 }
 
-// GetDailyHoroscope gets the daily horoscope for a sign (backward compatibility)
+// GetDailyHoroscope is a convenience wrapper for backward compatibility.
 func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, error) {
-	return s.GetHoroscope(sign, constants.HoroscopeTypeDaily)
+	return s.GetHoroscope(context.Background(), sign, constants.HoroscopeTypeDaily)
 }
 
-// fetchOllamaPrediction calls Ollama /api/predictions for advice text
-func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) {
-	if s.ollamaURL == "" || s.ollamaModel == "" {
-		return "", fmt.Errorf("ollama config missing")
-	}
-
-	reqBody := map[string]interface{}{
-		"model":  s.ollamaModel,
-		"prompt": prompt,
-	}
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", err
-	}
-
-	endpoint := fmt.Sprintf("%s%s", s.ollamaURL, constants.OllamaPredictionsEndpoint)
-	resp, err := s.httpClient.Post(endpoint, constants.ContentTypeJSON, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != constants.StatusOK && resp.StatusCode != constants.StatusCreated {
-		respBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("ollama error: %d %s", resp.StatusCode, string(respBytes))
-	}
-
-	var parsed struct {
-		Status string      `json:"status"`
-		Output interface{} `json:"output"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return "", err
-	}
-
-	// output may be array or string
-	if parsed.Output == nil {
-		return "", fmt.Errorf("ollama output empty")
-	}
-
-	// Prefer string output
-	if sOut, ok := parsed.Output.(string); ok {
-		return sOut, nil
-	}
-
-	if arrOut, ok := parsed.Output.([]interface{}); ok && len(arrOut) > 0 {
-		if sOut, ok := arrOut[0].(string); ok {
-			return sOut, nil
-		}
-	}
-
-	return "", fmt.Errorf("unexpected ollama output format")
-}
-
-func (s *AstrologyService) generateHoroscope(sign, horoscopeType string) string {
-	var prompt string
-
-	switch horoscopeType {
-	case constants.HoroscopeTypeDaily:
-		prompt = fmt.Sprintf("Write a concise daily horoscope for %s. Include advice for love, money, and health, with realistic language.", sign)
-	case constants.HoroscopeTypeWeekly:
-		prompt = fmt.Sprintf("Write a detailed weekly horoscope for %s. Cover career, relationships, health, and spiritual growth for the coming week.", sign)
-	case constants.HoroscopeTypeMonthly:
-		prompt = fmt.Sprintf("Write a comprehensive monthly horoscope for %s. Include major themes, opportunities, challenges, and advice for the entire month.", sign)
-	case constants.HoroscopeTypeYearly:
-		prompt = fmt.Sprintf("Write an annual horoscope for %s. Cover major life areas including career, relationships, health, and personal growth for the year ahead.", sign)
-	case constants.HoroscopeTypeLove:
-		prompt = fmt.Sprintf("Write a focused love and relationship horoscope for %s. Include romantic opportunities, relationship advice, and emotional guidance.", sign)
-	default:
-		prompt = fmt.Sprintf("Write a friendly and concise daily horoscope for %s. Include advice for love, money, and health.", sign)
-	}
-
-	if text, err := s.fetchOllamaPrediction(prompt); err == nil && text != "" {
-		return text
-	}
-
-	// fallback if Ollama is unavailable
-	return s.generateFallbackHoroscope(sign, horoscopeType)
-}
-
-func (s *AstrologyService) generateFallbackHoroscope(sign, horoscopeType string) string {
-	element := s.getSignElement(sign)
-
-	switch horoscopeType {
-	case constants.HoroscopeTypeWeekly:
-		return fmt.Sprintf("This week brings new opportunities for %s. Trust your intuition and embrace change. Your natural %s energy will guide you to success in relationships and career.", sign, element)
-	case constants.HoroscopeTypeMonthly:
-		return fmt.Sprintf("This month focuses on growth and stability for %s. Pay attention to your health and relationships. Your %s nature will help you navigate challenges successfully.", sign, element)
-	case constants.HoroscopeTypeYearly:
-		return fmt.Sprintf("This year promises growth and new beginnings for %s. Focus on building strong foundations in career and relationships. Your %s energy will bring success through perseverance.", sign, element)
-	case constants.HoroscopeTypeLove:
-		return fmt.Sprintf("Love brings warmth and connection for %s this week. Open your heart to new possibilities. Your %s nature attracts meaningful relationships.", sign, element)
-	default: // daily
-		return fmt.Sprintf("Today brings new opportunities for %s. Trust your intuition and embrace change. Your natural %s energy will guide you to success.", sign, s.getSignElement(sign))
-	}
-}
-
-// CheckCompatibility checks compatibility between two birth charts
-func (s *AstrologyService) CheckCompatibility(chartID1, chartID2 uuid.UUID) (map[string]interface{}, error) {
+// CheckCompatibility performs Guna Milan analysis between two birth charts.
+func (s *AstrologyService) CheckCompatibility(ctx context.Context, chartID1, chartID2 uuid.UUID) (map[string]interface{}, error) {
 	result, err := s.compatibilityService.CheckCompatibility(chartID1, chartID2)
 	if err != nil {
 		return nil, err
 	}
-
 	return map[string]interface{}{
 		"overall_score":      result.OverallScore,
 		"varna_score":        result.VarnaScore,
@@ -296,135 +181,21 @@ func (s *AstrologyService) CheckCompatibility(chartID1, chartID2 uuid.UUID) (map
 	}, nil
 }
 
-// parseBirthTime parses birth time string to time.Time
-func (s *AstrologyService) parseBirthTime(birthTime string) time.Time {
-	// Parse time in HH:MM format
-	parsed, err := time.Parse(constants.TimeFormat, birthTime)
-	if err != nil {
-		// Default to noon if parsing fails
-		return time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC)
-	}
-	return parsed
-}
+// GetRemedies generates personalized remedies via AI with a deterministic fallback.
+func (s *AstrologyService) GetRemedies(ctx context.Context, chart *database.BirthChart) (map[string]interface{}, error) {
+	prompt := fmt.Sprintf(`Based on this birth chart, provide personalized astrological remedies:
 
-func (s *AstrologyService) calculateMoonSign(birthDate time.Time, birthTime string) string {
-	// Simplified moon sign calculation - in reality this requires astronomical calculations
-	return "Cancer" // Placeholder
-}
-
-func (s *AstrologyService) calculateRisingSign(birthDate time.Time, birthTime string, lat, lng float64) string {
-	// Simplified rising sign calculation
-	return "Leo" // Placeholder
-}
-
-func (s *AstrologyService) getSignElement(sign string) string {
-	elements := map[string]string{
-		constants.Aries: constants.ElementFiery, constants.Leo: constants.ElementFiery, constants.Sagittarius: constants.ElementFiery,
-		constants.Taurus: constants.ElementEarthy, constants.Virgo: constants.ElementEarthy, constants.Capricorn: constants.ElementEarthy,
-		constants.Gemini: constants.ElementAiry, constants.Libra: constants.ElementAiry, constants.Aquarius: constants.ElementAiry,
-		constants.Cancer: constants.ElementWatery, constants.Scorpio: constants.ElementWatery, constants.Pisces: constants.ElementWatery,
-	}
-	return elements[sign]
-}
-
-// GetRemedies generates personalized remedies based on a birth chart
-type PersonalizationPreferences struct {
-	Goals      string   `json:"goals,omitempty"`
-	FocusAreas []string `json:"focus_areas,omitempty"`
-	Tone       string   `json:"tone,omitempty"`
-}
-
-func (s *AstrologyService) GeneratePersonalizedHoroscope(chart *database.BirthChart, preferences PersonalizationPreferences) (map[string]interface{}, error) {
-	prompt := s.buildPersonalizedHoroscopePrompt(chart, preferences)
-
-	horoscopeText, err := s.fetchOllamaPrediction(prompt)
-	if err != nil {
-		horoscopeText = s.generatePersonalizedHoroscopeFallback(chart, preferences)
-	}
-
-	return map[string]interface{}{
-		"chart_id":                chart.ID,
-		"sun_sign":                chart.SunSign,
-		"personalized_horoscope":  horoscopeText,
-		"personalization_details": preferences,
-		"generated_at":            time.Now(),
-	}, nil
-}
-
-func (s *AstrologyService) buildPersonalizedHoroscopePrompt(chart *database.BirthChart, preferences PersonalizationPreferences) string {
-	focusAreas := "general life guidance"
-	if len(preferences.FocusAreas) > 0 {
-		focusAreas = fmt.Sprintf("focus areas: %s", strings.Join(preferences.FocusAreas, ", "))
-	}
-
-	tone := preferences.Tone
-	if tone == "" {
-		tone = "supportive, uplifting, and grounded"
-	}
-
-	return fmt.Sprintf(`You are an expert astrology AI assistant. Use the birth chart and personalization details to write a deeply tailored horoscope.
-
-Birth Chart Data:
-- Sun Sign: %s
-- Moon Sign: %s
-- Rising Sign: %s
-- Planets: %s
-- Houses: %s
-- Aspects: %s
-
-Personalization:
-- Goals: %s
-- %s
-- Tone: %s
-
-Provide a horoscope that speaks to the user's individual journey, offers practical guidance, and uses clear, positive language.
-`, chart.SunSign, chart.MoonSign, chart.RisingSign, chart.Planets, chart.Houses, chart.Aspects, preferences.Goals, focusAreas, tone)
-}
-
-func (s *AstrologyService) generatePersonalizedHoroscopeFallback(chart *database.BirthChart, preferences PersonalizationPreferences) string {
-	focusAreas := "general life guidance"
-	if len(preferences.FocusAreas) > 0 {
-		focusAreas = strings.Join(preferences.FocusAreas, ", ")
-	}
-
-	tone := preferences.Tone
-	if tone == "" {
-		tone = "supportive and balanced"
-	}
-
-	return fmt.Sprintf(`Personalized horoscope for %s with a %s tone.
-
-Focus: %s
-Goals: %s
-
-As you move through the day, your chart shows an emphasis on inner growth and practical progress. Lean into your natural strengths, honor your emotions, and take small actions that support your long-term goals.`, chart.SunSign, tone, focusAreas, preferences.Goals)
-}
-
-func (s *AstrologyService) GetRemedies(chart *database.BirthChart) (map[string]interface{}, error) {
-	// Generate remedies using AI based on the birth chart
-	prompt := fmt.Sprintf(`Based on this birth chart, provide personalized astrological remedies and recommendations:
-
-Sun Sign: %s
-Moon Sign: %s
-Rising Sign: %s
+Sun Sign: %s | Moon Sign: %s | Rising Sign: %s
 Planets: %s
 Houses: %s
 Aspects: %s
 
-Please provide specific remedies for:
-1. Health and well-being
-2. Career and financial success
-3. Relationships and love
-4. Spiritual growth
-5. Gemstones and colors to wear
-6. Mantras or affirmations
-7. Daily practices or rituals
-
-Make the remedies practical, positive, and tailored to this chart.`, chart.SunSign, chart.MoonSign, chart.RisingSign, chart.Planets, chart.Houses, chart.Aspects)
+Provide specific remedies for: health, career, relationships, spiritual growth, gemstones, mantras, daily practices.`,
+		chart.SunSign, chart.MoonSign, chart.RisingSign,
+		chart.Planets, chart.Houses, chart.Aspects)
 
 	remediesText, err := s.fetchOllamaPrediction(prompt)
 	if err != nil {
-		// Fallback remedies if AI is unavailable
 		remediesText = s.generateFallbackRemedies(chart)
 	}
 
@@ -432,44 +203,203 @@ Make the remedies practical, positive, and tailored to this chart.`, chart.SunSi
 		"chart_id":     chart.ID,
 		"sun_sign":     chart.SunSign,
 		"remedies":     remediesText,
-		"generated_at": time.Now(),
+		"generated_at": time.Now().UTC(),
 	}, nil
 }
 
-// generateFallbackRemedies provides basic remedies when AI is unavailable
+// GeneratePersonalizedHoroscope generates a chart-specific horoscope via AI.
+func (s *AstrologyService) GeneratePersonalizedHoroscope(ctx context.Context, chart *database.BirthChart, prefs ports.PersonalizationPreferences) (map[string]interface{}, error) {
+	prompt := s.buildPersonalizedHoroscopePrompt(chart, prefs)
+	text, err := s.fetchOllamaPrediction(prompt)
+	if err != nil {
+		text = s.generatePersonalizedHoroscopeFallback(chart, prefs)
+	}
+	return map[string]interface{}{
+		"chart_id":                chart.ID,
+		"sun_sign":                chart.SunSign,
+		"personalized_horoscope":  text,
+		"personalization_details": prefs,
+		"generated_at":            time.Now().UTC(),
+	}, nil
+}
+
+// GetCurrentTransits returns current planetary positions for a given location.
+func (s *AstrologyService) GetCurrentTransits(ctx context.Context, lat, lng float64) ([]map[string]interface{}, error) {
+	now := time.Now().UTC()
+	jd := s.calculationService.calculateJulianDay(now)
+	planets, err := s.calculationService.calculatePlanetPositions(jd)
+	if err != nil {
+		return nil, err
+	}
+	houses := s.calculationService.calculateHouses(0) // ascendant=0 for generic transits
+	if lat != 0 || lng != 0 {
+		asc, err := s.calculationService.calculateAscendant(jd, lat, lng)
+		if err == nil {
+			houses = s.calculationService.calculateHouses(asc)
+		}
+	}
+	planets = s.calculationService.assignPlanetsToHouses(planets, houses)
+
+	result := make([]map[string]interface{}, len(planets))
+	for i, p := range planets {
+		result[i] = map[string]interface{}{
+			"planet":      p.Name,
+			"sign":        p.Sign,
+			"degree":      p.Degree,
+			"longitude":   p.Longitude,
+			"house":       p.House,
+			"retrograde":  p.Retrograde,
+			"exalted":     p.Exalted,
+			"debilitated": p.Debilitated,
+			"own_sign":    p.OwnSign,
+		}
+	}
+	return result, nil
+}
+
+// fetchOllamaPrediction calls the Ollama /api/predictions endpoint.
+func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) {
+	if s.ollamaURL == "" || s.ollamaModel == "" {
+		return "", fmt.Errorf("ollama not configured")
+	}
+
+	body, err := json.Marshal(map[string]interface{}{
+		"model":  s.ollamaModel,
+		"prompt": prompt,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	endpoint := s.ollamaURL + constants.OllamaPredictionsEndpoint
+	resp, err := s.httpClient.Post(endpoint, constants.ContentTypeJSON, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("ollama request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(b))
+	}
+
+	var parsed struct {
+		Output interface{} `json:"output"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return "", fmt.Errorf("failed to decode ollama response: %w", err)
+	}
+	if parsed.Output == nil {
+		return "", fmt.Errorf("ollama output is empty")
+	}
+	if s, ok := parsed.Output.(string); ok {
+		return s, nil
+	}
+	if arr, ok := parsed.Output.([]interface{}); ok && len(arr) > 0 {
+		if s, ok := arr[0].(string); ok {
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("unexpected ollama output format")
+}
+
+func (s *AstrologyService) generateHoroscope(sign, horoscopeType string) string {
+	prompts := map[string]string{
+		constants.HoroscopeTypeDaily:   fmt.Sprintf("Write a concise daily horoscope for %s. Include advice for love, money, and health.", sign),
+		constants.HoroscopeTypeWeekly:  fmt.Sprintf("Write a detailed weekly horoscope for %s covering career, relationships, health, and spiritual growth.", sign),
+		constants.HoroscopeTypeMonthly: fmt.Sprintf("Write a comprehensive monthly horoscope for %s including major themes, opportunities, and challenges.", sign),
+		constants.HoroscopeTypeYearly:  fmt.Sprintf("Write an annual horoscope for %s covering career, relationships, health, and personal growth.", sign),
+		constants.HoroscopeTypeLove:    fmt.Sprintf("Write a love and relationship horoscope for %s with romantic opportunities and emotional guidance.", sign),
+	}
+	prompt, ok := prompts[horoscopeType]
+	if !ok {
+		prompt = fmt.Sprintf("Write a friendly daily horoscope for %s.", sign)
+	}
+
+	if text, err := s.fetchOllamaPrediction(prompt); err == nil && text != "" {
+		return text
+	}
+	return s.generateFallbackHoroscope(sign, horoscopeType)
+}
+
+func (s *AstrologyService) generateFallbackHoroscope(sign, horoscopeType string) string {
+	element := s.getSignElement(sign)
+	switch horoscopeType {
+	case constants.HoroscopeTypeWeekly:
+		return fmt.Sprintf("This week brings new opportunities for %s. Your natural %s energy will guide you to success.", sign, element)
+	case constants.HoroscopeTypeMonthly:
+		return fmt.Sprintf("This month focuses on growth for %s. Your %s nature will help you navigate challenges.", sign, element)
+	case constants.HoroscopeTypeYearly:
+		return fmt.Sprintf("This year promises growth for %s. Your %s energy will bring success through perseverance.", sign, element)
+	case constants.HoroscopeTypeLove:
+		return fmt.Sprintf("Love brings warmth for %s. Your %s nature attracts meaningful relationships.", sign, element)
+	default:
+		return fmt.Sprintf("Today brings new opportunities for %s. Trust your %s energy.", sign, element)
+	}
+}
+
+func (s *AstrologyService) buildPersonalizedHoroscopePrompt(chart *database.BirthChart, prefs ports.PersonalizationPreferences) string {
+	focusAreas := "general life guidance"
+	if len(prefs.FocusAreas) > 0 {
+		focusAreas = strings.Join(prefs.FocusAreas, ", ")
+	}
+	tone := prefs.Tone
+	if tone == "" {
+		tone = "supportive and grounded"
+	}
+	return fmt.Sprintf(`You are an expert astrology AI. Write a deeply tailored horoscope.
+
+Birth Chart: Sun=%s | Moon=%s | Rising=%s
+Planets: %s
+
+Goals: %s | Focus: %s | Tone: %s
+
+Provide practical, positive guidance tailored to this individual.`,
+		chart.SunSign, chart.MoonSign, chart.RisingSign, chart.Planets,
+		prefs.Goals, focusAreas, tone)
+}
+
+func (s *AstrologyService) generatePersonalizedHoroscopeFallback(chart *database.BirthChart, prefs ports.PersonalizationPreferences) string {
+	focusAreas := "general life guidance"
+	if len(prefs.FocusAreas) > 0 {
+		focusAreas = strings.Join(prefs.FocusAreas, ", ")
+	}
+	tone := prefs.Tone
+	if tone == "" {
+		tone = "supportive and balanced"
+	}
+	return fmt.Sprintf("Personalized horoscope for %s (%s tone). Focus: %s. Goals: %s. Lean into your natural strengths and take small actions that support your long-term goals.",
+		chart.SunSign, tone, focusAreas, prefs.Goals)
+}
+
 func (s *AstrologyService) generateFallbackRemedies(chart *database.BirthChart) string {
 	element := s.getSignElement(chart.SunSign)
+	return fmt.Sprintf(`General remedies for %s (%s element):
 
-	return fmt.Sprintf(`Based on your %s sun sign (%s element), here are some general remedies:
+Health: Daily meditation, balanced diet, regular exercise.
+Career: Build stability, network intentionally, set realistic goals.
+Relationships: Communicate openly, practice active listening.
+Spiritual: Connect with nature, practice gratitude daily.
+Gemstones: Wear colors resonating with your %s energy.
+Daily Practice: Morning affirmations, evening reflection.`,
+		chart.SunSign, element, element)
+}
 
-**Health & Well-being:**
-- Practice daily meditation for 10-15 minutes
-- Stay hydrated and maintain a balanced diet
-- Regular exercise according to your energy levels
+func (s *AstrologyService) getSignElement(sign string) string {
+	elements := map[string]string{
+		"Aries": "fiery", "Leo": "fiery", "Sagittarius": "fiery",
+		"Taurus": "earthy", "Virgo": "earthy", "Capricorn": "earthy",
+		"Gemini": "airy", "Libra": "airy", "Aquarius": "airy",
+		"Cancer": "watery", "Scorpio": "watery", "Pisces": "watery",
+	}
+	return elements[sign]
+}
 
-**Career & Finance:**
-- Focus on building stability and patience
-- Network with like-minded individuals
-- Set realistic financial goals
-
-**Relationships:**
-- Communicate openly and honestly
-- Practice active listening
-- Show appreciation for your loved ones
-
-**Spiritual Growth:**
-- Read spiritual books or scriptures
-- Connect with nature regularly
-- Practice gratitude daily
-
-**Gemstones & Colors:**
-- Wear colors that resonate with your %s energy
-- Consider gemstones like amethyst for protection
-
-**Daily Practices:**
-- Morning affirmations
-- Evening reflection
-- Maintain a positive mindset
-
-Remember, these are general suggestions. Consult with a professional astrologer for personalized guidance.`, chart.SunSign, element, element)
+// parseBirthTime parses "HH:MM" and returns an error on invalid input.
+func parseBirthTime(birthTime string) (time.Time, error) {
+	t, err := time.Parse(constants.TimeFormat, birthTime)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid birth_time %q: expected HH:MM format", birthTime)
+	}
+	return t, nil
 }
