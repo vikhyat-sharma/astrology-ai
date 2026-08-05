@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,22 +11,26 @@ import (
 	"github.com/graphql-go/graphql"
 	graphqlhandler "github.com/graphql-go/handler"
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
-	"github.com/vikhyat-sharma/astrology-ai/internal/services"
+	"github.com/vikhyat-sharma/astrology-ai/internal/ports"
 )
 
-// AstrologyHandler handles astrology HTTP requests
+// AstrologyHandler handles astrology HTTP requests.
 type AstrologyHandler struct {
-	astrologyService *services.AstrologyService
+	astrologyService ports.AstrologyService
+	graphqlHandler   http.Handler
 }
 
-// NewAstrologyHandler creates a new astrology handler
-func NewAstrologyHandler(astrologyService *services.AstrologyService) *AstrologyHandler {
-	return &AstrologyHandler{astrologyService: astrologyService}
+// NewAstrologyHandler creates a new AstrologyHandler.
+// The GraphQL schema is built once at construction time — not per request.
+func NewAstrologyHandler(astrologyService ports.AstrologyService) *AstrologyHandler {
+	h := &AstrologyHandler{astrologyService: astrologyService}
+	h.graphqlHandler = h.buildGraphQLHandler()
+	return h
 }
 
-// CreateBirthChartRequest represents the create birth chart request payload
+// CreateBirthChartRequest is the create birth chart request payload.
 type CreateBirthChartRequest struct {
-	BirthDate  string  `json:"birth_date" binding:"required"` // ISO 8601 date string
+	BirthDate  string  `json:"birth_date" binding:"required"`
 	BirthTime  string  `json:"birth_time" binding:"required"`
 	BirthPlace string  `json:"birth_place" binding:"required"`
 	Latitude   float64 `json:"latitude" binding:"required"`
@@ -33,13 +38,9 @@ type CreateBirthChartRequest struct {
 	Timezone   string  `json:"timezone" binding:"required"`
 }
 
-// CreateBirthChart handles creating a birth chart
+// CreateBirthChart handles birth chart creation.
 func (h *AstrologyHandler) CreateBirthChart(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
 	var req CreateBirthChartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,80 +48,64 @@ func (h *AstrologyHandler) CreateBirthChart(c *gin.Context) {
 		return
 	}
 
-	// Parse birth date
-	birthDate, err := time.Parse("2006-01-02", req.BirthDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid birth date format. Use YYYY-MM-DD"})
-		return
-	}
-
-	data := services.BirthChartData{
-		UserID:     userID.(uuid.UUID),
-		BirthDate:  birthDate,
+	chart, err := h.astrologyService.CreateBirthChart(c.Request.Context(), ports.BirthChartData{
+		UserID:     userID,
+		BirthDate:  req.BirthDate,
 		BirthTime:  req.BirthTime,
 		BirthPlace: req.BirthPlace,
 		Latitude:   req.Latitude,
 		Longitude:  req.Longitude,
 		Timezone:   req.Timezone,
-	}
-
-	chart, err := h.astrologyService.CreateBirthChart(data)
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Birth chart created successfully",
+		"message": "birth chart created successfully",
 		"chart":   chart,
 	})
 }
 
-// GetBirthChart handles getting a birth chart by ID
+// GetBirthChart handles fetching a birth chart by ID.
 func (h *AstrologyHandler) GetBirthChart(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
-	chartIDStr := c.Param("id")
-	chartID, err := uuid.Parse(chartIDStr)
+	chartID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chart ID"})
 		return
 	}
 
-	chart, err := h.astrologyService.GetBirthChart(chartID)
+	chart, err := h.astrologyService.GetBirthChart(c.Request.Context(), chartID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Check if the chart belongs to the authenticated user
-	if chart.UserID != userID.(uuid.UUID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	if chart.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"chart": chart})
 }
 
-// GetHoroscope handles getting horoscopes by type and sign
+// GetHoroscope handles fetching a horoscope by sign and optional type.
 func (h *AstrologyHandler) GetHoroscope(c *gin.Context) {
 	sign := c.Param("sign")
-	horoscopeType := c.Query("type")
-
 	if sign == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Sign parameter is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sign parameter is required"})
 		return
 	}
 
+	horoscopeType := c.Query("type")
 	if horoscopeType == "" {
 		horoscopeType = constants.HoroscopeTypeDaily
 	}
 
-	horoscope, err := h.astrologyService.GetHoroscope(sign, horoscopeType)
+	horoscope, err := h.astrologyService.GetHoroscope(c.Request.Context(), sign, horoscopeType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -129,19 +114,15 @@ func (h *AstrologyHandler) GetHoroscope(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"horoscope": horoscope})
 }
 
-// CheckCompatibilityRequest represents the compatibility check request payload
+// CheckCompatibilityRequest is the compatibility check request payload.
 type CheckCompatibilityRequest struct {
 	ChartID1 string `json:"chart_id_1" binding:"required"`
 	ChartID2 string `json:"chart_id_2" binding:"required"`
 }
 
-// CheckCompatibility handles checking compatibility between two birth charts
+// CheckCompatibility handles compatibility analysis between two birth charts.
 func (h *AstrologyHandler) CheckCompatibility(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
 	var req CheckCompatibilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,44 +132,41 @@ func (h *AstrologyHandler) CheckCompatibility(c *gin.Context) {
 
 	chartID1, err := uuid.Parse(req.ChartID1)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID 1"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chart_id_1"})
 		return
 	}
-
 	chartID2, err := uuid.Parse(req.ChartID2)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID 2"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chart_id_2"})
 		return
 	}
 
-	// Verify that both charts belong to the authenticated user
-	chart1, err := h.astrologyService.GetBirthChart(chartID1)
+	// Authorisation: both charts must belong to the authenticated user.
+	chart1, err := h.astrologyService.GetBirthChart(c.Request.Context(), chartID1)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Chart 1 not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "chart 1 not found"})
 		return
 	}
-
-	chart2, err := h.astrologyService.GetBirthChart(chartID2)
+	chart2, err := h.astrologyService.GetBirthChart(c.Request.Context(), chartID2)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Chart 2 not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "chart 2 not found"})
+		return
+	}
+	if chart1.UserID != userID || chart2.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	if chart1.UserID != userID.(uuid.UUID) || chart2.UserID != userID.(uuid.UUID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
-	}
-
-	compatibility, err := h.astrologyService.CheckCompatibility(chartID1, chartID2)
+	result, err := h.astrologyService.CheckCompatibility(c.Request.Context(), chartID1, chartID2)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"compatibility": compatibility})
+	c.JSON(http.StatusOK, gin.H{"compatibility": result})
 }
 
-// PersonalizedHoroscopeRequest represents the request payload for advanced personalization
+// PersonalizedHoroscopeRequest is the personalized horoscope request payload.
 type PersonalizedHoroscopeRequest struct {
 	ChartID    string   `json:"chart_id" binding:"required"`
 	Goals      string   `json:"goals,omitempty"`
@@ -196,13 +174,9 @@ type PersonalizedHoroscopeRequest struct {
 	Tone       string   `json:"tone,omitempty"`
 }
 
-// GeneratePersonalizedHoroscope handles advanced ML personalization for horoscopes
+// GeneratePersonalizedHoroscope handles AI-personalized horoscope generation.
 func (h *AstrologyHandler) GeneratePersonalizedHoroscope(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
 	var req PersonalizedHoroscopeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -212,22 +186,21 @@ func (h *AstrologyHandler) GeneratePersonalizedHoroscope(c *gin.Context) {
 
 	chartID, err := uuid.Parse(req.ChartID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chart_id"})
 		return
 	}
 
-	chart, err := h.astrologyService.GetBirthChart(chartID)
+	chart, err := h.astrologyService.GetBirthChart(c.Request.Context(), chartID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-
-	if chart.UserID != userID.(uuid.UUID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	if chart.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	personalized, err := h.astrologyService.GeneratePersonalizedHoroscope(chart, services.PersonalizationPreferences{
+	result, err := h.astrologyService.GeneratePersonalizedHoroscope(c.Request.Context(), chart, ports.PersonalizationPreferences{
 		Goals:      req.Goals,
 		FocusAreas: req.FocusAreas,
 		Tone:       req.Tone,
@@ -237,37 +210,30 @@ func (h *AstrologyHandler) GeneratePersonalizedHoroscope(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"personalized_horoscope": personalized})
+	c.JSON(http.StatusOK, gin.H{"personalized_horoscope": result})
 }
 
-// GetRemedies handles getting remedies based on a birth chart
+// GetRemedies handles fetching AI-generated remedies for a birth chart.
 func (h *AstrologyHandler) GetRemedies(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
+	userID := mustUserID(c)
 
-	chartIDStr := c.Param("id")
-	chartID, err := uuid.Parse(chartIDStr)
+	chartID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chart ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chart ID"})
 		return
 	}
 
-	chart, err := h.astrologyService.GetBirthChart(chartID)
+	chart, err := h.astrologyService.GetBirthChart(c.Request.Context(), chartID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Check if the chart belongs to the authenticated user
-	if chart.UserID != userID.(uuid.UUID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	if chart.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	remedies, err := h.astrologyService.GetRemedies(chart)
+	remedies, err := h.astrologyService.GetRemedies(c.Request.Context(), chart)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -276,30 +242,39 @@ func (h *AstrologyHandler) GetRemedies(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"remedies": remedies})
 }
 
-// GetCurrentTransits handles real-time transit tracking
+// GetCurrentTransits handles real-time planetary transit queries.
 func (h *AstrologyHandler) GetCurrentTransits(c *gin.Context) {
-	lat := 0.0
-	lng := 0.0
-	if l := c.Query("latitude"); l != "" {
-		fmt.Sscanf(l, "%f", &lat)
+	lat, err := parseOptionalFloat(c.Query("latitude"), -90, 90)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid latitude: %v", err)})
+		return
 	}
-	if l := c.Query("longitude"); l != "" {
-		fmt.Sscanf(l, "%f", &lng)
+	lng, err := parseOptionalFloat(c.Query("longitude"), -180, 180)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid longitude: %v", err)})
+		return
 	}
-	transits, err := h.astrologyService.GetCurrentTransits(lat, lng)
+
+	transits, err := h.astrologyService.GetCurrentTransits(c.Request.Context(), lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"transits": transits, "timestamp": time.Now().UTC()})
+
+	c.JSON(http.StatusOK, gin.H{
+		"transits":  transits,
+		"timestamp": time.Now().UTC(),
+	})
 }
 
-// GraphQLHandler returns a gin.HandlerFunc that serves a minimal GraphQL schema
-// exposing a `horoscope(sign: String!, type: String)` query backed by the
-// existing horoscope generation service.
+// GraphQLHandler returns the pre-built GraphQL gin handler.
 func (h *AstrologyHandler) GraphQLHandler() gin.HandlerFunc {
+	return gin.WrapH(h.graphqlHandler)
+}
 
-	// Define GraphQL types
+// buildGraphQLHandler constructs the GraphQL schema and handler once at startup.
+// Panics on schema build failure — this is a programming error, not a runtime error.
+func (h *AstrologyHandler) buildGraphQLHandler() http.Handler {
 	horoscopeType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Horoscope",
 		Fields: graphql.Fields{
@@ -311,7 +286,6 @@ func (h *AstrologyHandler) GraphQLHandler() gin.HandlerFunc {
 		},
 	})
 
-	// Root query
 	rootQuery := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
@@ -327,7 +301,7 @@ func (h *AstrologyHandler) GraphQLHandler() gin.HandlerFunc {
 					if htype == "" {
 						htype = constants.HoroscopeTypeDaily
 					}
-					horoscope, err := h.astrologyService.GetHoroscope(sign, htype)
+					horoscope, err := h.astrologyService.GetHoroscope(p.Context, sign, htype)
 					if err != nil {
 						return nil, err
 					}
@@ -343,12 +317,29 @@ func (h *AstrologyHandler) GraphQLHandler() gin.HandlerFunc {
 		},
 	})
 
-	schema, _ := graphql.NewSchema(graphql.SchemaConfig{Query: rootQuery})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{Query: rootQuery})
+	if err != nil {
+		panic(fmt.Sprintf("failed to build GraphQL schema: %v", err))
+	}
 
-	hdl := graphqlhandler.New(&graphqlhandler.Config{
+	return graphqlhandler.New(&graphqlhandler.Config{
 		Schema: &schema,
 		Pretty: true,
 	})
+}
 
-	return gin.WrapH(hdl)
+// parseOptionalFloat parses a query string as float64, returning 0.0 if empty.
+// Returns an error if the value is present but invalid or out of the given range.
+func parseOptionalFloat(s string, min, max float64) (float64, error) {
+	if s == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("must be a number")
+	}
+	if v < min || v > max {
+		return 0, fmt.Errorf("must be between %.0f and %.0f", min, max)
+	}
+	return v, nil
 }
