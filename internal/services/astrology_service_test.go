@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -13,109 +14,134 @@ import (
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 	"github.com/vikhyat-sharma/astrology-ai/internal/mocks"
+	"github.com/vikhyat-sharma/astrology-ai/internal/ports"
 )
 
-func TestCalculateSunSign(t *testing.T) {
+var ctx = context.Background()
+
+// TestSunSignCalculation validates the VSOP87-simplified sun longitude against
+// known reference values. Tolerance is ±1 sign boundary (the simplified series
+// is accurate to ~1 arcminute, well within a single sign).
+func TestSunSignCalculation(t *testing.T) {
 	tests := []struct {
 		name string
 		date string
 		want string
 	}{
-		{"AriesStart", "2023-03-21", "Capricorn"}, // Updated to match current simplified calculation
-		{"AriesEnd", "2023-04-19", "Aquarius"},
-		{"TaurusStart", "2023-04-20", "Aquarius"},
-		{"CapricornEnd", "2023-01-19", "Scorpio"},
+		// Reference: https://www.astro.com — tropical sun signs for noon UTC.
+		{"Aries equinox", "2023-03-21", "Aries"},
+		{"Taurus mid", "2023-05-05", "Taurus"},
+		{"Leo mid", "2023-08-05", "Leo"},
+		{"Capricorn mid", "2023-01-10", "Capricorn"},
+		{"Scorpio mid", "2023-11-05", "Scorpio"},
 	}
+
+	calc := NewCalculationService()
+	noon := time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, err := time.Parse(constants.DateFormat, tt.date)
+			d, err := time.Parse(constants.DateFormat, tt.date)
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Use calculation service for sun sign calculation
-			calcService := NewCalculationService()
-			chart, err := calcService.CalculateBirthChart(parsed, time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC), 0, 0)
+			chart, err := calc.CalculateBirthChart(d, noon, 0, 0)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("CalculateBirthChart error: %v", err)
 			}
-			if got := chart.SunSign; got != tt.want {
-				t.Fatalf("CalculateBirthChart() sun sign = %q, want %q", got, tt.want)
+			if chart.SunSign != tt.want {
+				t.Errorf("SunSign for %s = %q, want %q", tt.date, chart.SunSign, tt.want)
 			}
 		})
 	}
 }
 
 func TestGetSignElement(t *testing.T) {
-	service := &AstrologyService{}
-
-	signTests := map[string]string{
+	svc := &AstrologyService{}
+	cases := map[string]string{
 		constants.Aries:  constants.ElementFiery,
 		constants.Virgo:  constants.ElementEarthy,
 		constants.Gemini: constants.ElementAiry,
 		constants.Pisces: constants.ElementWatery,
 	}
-
-	for sign, want := range signTests {
-		if got := service.getSignElement(sign); got != want {
-			t.Fatalf("getSignElement(%q) = %q, want %q", sign, got, want)
+	for sign, want := range cases {
+		if got := svc.getSignElement(sign); got != want {
+			t.Errorf("getSignElement(%q) = %q, want %q", sign, got, want)
 		}
 	}
 }
 
+func TestParseBirthTimeValid(t *testing.T) {
+	bt, err := parseBirthTime("10:30")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if bt.Hour() != 10 || bt.Minute() != 30 {
+		t.Errorf("expected 10:30, got %02d:%02d", bt.Hour(), bt.Minute())
+	}
+}
+
+func TestParseBirthTimeInvalid(t *testing.T) {
+	_, err := parseBirthTime("25:99")
+	if err == nil {
+		t.Fatal("expected error for invalid time, got nil")
+	}
+}
+
+func TestParseBirthTimeEmpty(t *testing.T) {
+	_, err := parseBirthTime("")
+	if err == nil {
+		t.Fatal("expected error for empty time, got nil")
+	}
+}
+
 func TestGenerateDailyHoroscopeWithMock(t *testing.T) {
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: constants.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "AI generated horoscope content"}`))),
 			}, nil
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
-	out := service.generateHoroscope(constants.Leo, constants.HoroscopeTypeDaily)
-
+	svc := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTP)
+	out := svc.generateHoroscope(constants.Leo, constants.HoroscopeTypeDaily)
 	if out != "AI generated horoscope content" {
 		t.Fatalf("expected AI content, got %q", out)
 	}
 }
 
 func TestGenerateDailyHoroscopeFallback(t *testing.T) {
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return nil, errors.New("network error")
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
-	out := service.generateHoroscope(constants.Leo, constants.HoroscopeTypeDaily)
+	svc := NewAstrologyServiceWithClient(nil, "", "", mockHTTP)
+	out := svc.generateHoroscope(constants.Leo, constants.HoroscopeTypeDaily)
 	if out == "" {
 		t.Fatal("expected non-empty fallback horoscope")
 	}
 }
 
 func TestGetCurrentTransits(t *testing.T) {
-	service := NewAstrologyServiceWithClient(nil, "", "", nil)
-
-	transits, err := service.GetCurrentTransits(12.9716, 77.5946)
+	svc := NewAstrologyServiceWithClient(nil, "", "", nil)
+	transits, err := svc.GetCurrentTransits(ctx, 12.9716, 77.5946)
 	if err != nil {
 		t.Fatalf("GetCurrentTransits failed: %v", err)
 	}
-
 	if len(transits) == 0 {
-		t.Fatal("expected at least one transit result")
+		t.Fatal("expected at least one transit")
 	}
-
 	first := transits[0]
 	if first["planet"] == "" {
-		t.Fatal("expected planet name in transit result")
+		t.Fatal("expected planet name in transit")
 	}
 	if first["sign"] == "" {
-		t.Fatal("expected sign in transit result")
+		t.Fatal("expected sign in transit")
 	}
 	if _, ok := first["house"]; !ok {
-		t.Fatal("expected house in transit result")
+		t.Fatal("expected house in transit")
 	}
 }
 
@@ -131,22 +157,17 @@ func TestCalculateCompatibility(t *testing.T) {
 			}, nil
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
-	chartID1 := uuid.New()
-	chartID2 := uuid.New()
-
-	result, err := service.CheckCompatibility(chartID1, chartID2)
+	svc := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
+	result, err := svc.CheckCompatibility(ctx, uuid.New(), uuid.New())
 	if err != nil {
 		t.Fatalf("CheckCompatibility failed: %v", err)
 	}
-
-	if result["overall_score"].(int) < 0 || result["overall_score"].(int) > 36 {
-		t.Fatalf("expected overall_score between 0-36, got %v", result["overall_score"])
+	score := result["overall_score"].(int)
+	if score < 0 || score > 36 {
+		t.Fatalf("overall_score %d out of range 0–36", score)
 	}
-
 	if result["analysis"].(string) == "" {
-		t.Fatal("expected non-empty compatibility analysis")
+		t.Fatal("expected non-empty analysis")
 	}
 }
 
@@ -157,112 +178,107 @@ func TestCreateBirthChart(t *testing.T) {
 			return nil
 		},
 	}
+	svc := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
 
-	service := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
-
-	input := BirthChartData{
-		UserID:     uuid.New(),
-		BirthDate:  time.Date(1995, time.December, 15, 0, 0, 0, 0, time.UTC),
+	userID := uuid.New()
+	chart, err := svc.CreateBirthChart(ctx, ports.BirthChartData{
+		UserID:     userID,
+		BirthDate:  "1995-12-15",
 		BirthTime:  "10:30",
 		BirthPlace: "Bangalore",
 		Latitude:   12.9716,
 		Longitude:  77.5946,
 		Timezone:   "Asia/Kolkata",
-	}
-
-	chart, err := service.CreateBirthChart(input)
+	})
 	if err != nil {
 		t.Fatalf("CreateBirthChart failed: %v", err)
 	}
-
-	if chart.UserID != input.UserID {
-		t.Fatalf("chart.UserID = %v, want %v", chart.UserID, input.UserID)
+	if chart.UserID != userID {
+		t.Fatalf("chart.UserID = %v, want %v", chart.UserID, userID)
 	}
+	// Dec 15 1995 — Sun should be in Sagittarius.
+	if chart.SunSign != "Sagittarius" {
+		t.Fatalf("expected Sagittarius for Dec 15, got %s", chart.SunSign)
+	}
+}
 
-	if chart.SunSign != "Taurus" {
-		t.Fatalf("expected Taurus, got %s", chart.SunSign)
+func TestCreateBirthChartInvalidDate(t *testing.T) {
+	svc := NewAstrologyServiceWithClient(nil, "", "", nil)
+	_, err := svc.CreateBirthChart(ctx, ports.BirthChartData{
+		UserID:    uuid.New(),
+		BirthDate: "not-a-date",
+		BirthTime: "10:30",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid birth_date")
+	}
+}
+
+func TestCreateBirthChartInvalidTime(t *testing.T) {
+	svc := NewAstrologyServiceWithClient(nil, "", "", nil)
+	_, err := svc.CreateBirthChart(ctx, ports.BirthChartData{
+		UserID:    uuid.New(),
+		BirthDate: "1995-12-15",
+		BirthTime: "99:99",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid birth_time")
 	}
 }
 
 func TestGetBirthChart(t *testing.T) {
-	expectedChart := &database.BirthChart{
-		ID:      uuid.New(),
-		UserID:  uuid.New(),
-		SunSign: constants.Leo,
-	}
-
+	expected := &database.BirthChart{ID: uuid.New(), UserID: uuid.New(), SunSign: constants.Leo}
 	mockRepo := &mocks.MockAstrologyRepository{
 		GetBirthChartFunc: func(id uuid.UUID) (*database.BirthChart, error) {
-			if id == expectedChart.ID {
-				return expectedChart, nil
+			if id == expected.ID {
+				return expected, nil
 			}
-			return nil, errors.New("chart not found")
+			return nil, errors.New("not found")
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
-
-	chart, err := service.GetBirthChart(expectedChart.ID)
+	svc := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
+	chart, err := svc.GetBirthChart(ctx, expected.ID)
 	if err != nil {
 		t.Fatalf("GetBirthChart failed: %v", err)
 	}
-
-	if chart.ID != expectedChart.ID {
-		t.Fatalf("chart.ID = %v, want %v", chart.ID, expectedChart.ID)
+	if chart.ID != expected.ID {
+		t.Fatalf("chart.ID = %v, want %v", chart.ID, expected.ID)
 	}
 }
 
 func TestGetDailyHoroscope(t *testing.T) {
 	mockRepo := &mocks.MockAstrologyRepository{
-		GetHoroscopeFunc: func(sign, horoscopeType string) (*database.Horoscope, error) {
-			return nil, errors.New("horoscope not found")
-		},
-		CreateHoroscopeFunc: func(horoscope *database.Horoscope) error {
-			horoscope.ID = uuid.New()
-			return nil
+		GetOrCreateHoroscopeFunc: func(h *database.Horoscope) (*database.Horoscope, error) {
+			h.ID = uuid.New()
+			return h, nil
 		},
 	}
-
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: constants.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Mock AI horoscope"}`))),
 			}, nil
 		},
 	}
+	svc := NewAstrologyServiceWithClient(mockRepo, "http://localhost:11434", "llama2", mockHTTP)
 
-	service := NewAstrologyServiceWithClient(mockRepo, "http://localhost:11434", "llama2", mockHTTPClient)
-
-	horoscope, err := service.GetDailyHoroscope(constants.Gemini)
+	horoscope, err := svc.GetHoroscope(ctx, constants.Gemini, constants.HoroscopeTypeDaily)
 	if err != nil {
-		t.Fatalf("GetDailyHoroscope failed: %v", err)
+		t.Fatalf("GetHoroscope failed: %v", err)
 	}
-
 	if horoscope.Sign != constants.Gemini {
-		t.Fatalf("horoscope.Sign = %s, want Gemini", horoscope.Sign)
+		t.Fatalf("Sign = %s, want Gemini", horoscope.Sign)
 	}
-
 	if horoscope.Type != constants.HoroscopeTypeDaily {
-		t.Fatalf("horoscope.Type = %s, want daily", horoscope.Type)
+		t.Fatalf("Type = %s, want daily", horoscope.Type)
 	}
 }
 
 func TestCheckCompatibility(t *testing.T) {
-	chart1ID := uuid.New()
-	chart2ID := uuid.New()
-
-	chart1 := &database.BirthChart{
-		ID:      chart1ID,
-		UserID:  uuid.New(),
-		SunSign: constants.Aries,
-	}
-
-	chart2 := &database.BirthChart{
-		ID:      chart2ID,
-		UserID:  uuid.New(),
-		SunSign: constants.Libra,
-	}
+	chart1ID, chart2ID := uuid.New(), uuid.New()
+	chart1 := &database.BirthChart{ID: chart1ID, UserID: uuid.New(), SunSign: constants.Aries}
+	chart2 := &database.BirthChart{ID: chart2ID, UserID: uuid.New(), SunSign: constants.Libra}
 
 	mockRepo := &mocks.MockAstrologyRepository{
 		GetBirthChartFunc: func(id uuid.UUID) (*database.BirthChart, error) {
@@ -272,211 +288,190 @@ func TestCheckCompatibility(t *testing.T) {
 			if id == chart2ID {
 				return chart2, nil
 			}
-			return nil, errors.New("chart not found")
+			return nil, errors.New("not found")
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
-
-	result, err := service.CheckCompatibility(chart1ID, chart2ID)
+	svc := NewAstrologyServiceWithClient(mockRepo, "", "", nil)
+	result, err := svc.CheckCompatibility(ctx, chart1ID, chart2ID)
 	if err != nil {
 		t.Fatalf("CheckCompatibility failed: %v", err)
 	}
-
-	if result["overall_score"].(int) < 0 || result["overall_score"].(int) > 36 {
-		t.Fatalf("expected overall_score between 0-36, got %v", result["overall_score"])
-	}
-
-	if result["analysis"].(string) == "" {
-		t.Fatal("expected non-empty compatibility analysis")
+	score := result["overall_score"].(int)
+	if score < 0 || score > 36 {
+		t.Fatalf("overall_score %d out of range", score)
 	}
 }
 
 func TestFetchOllamaPredictionSuccess(t *testing.T) {
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: constants.StatusOK,
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Test prediction"}`))),
 			}, nil
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
-
-	result, err := service.fetchOllamaPrediction("test prompt")
+	svc := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTP)
+	result, err := svc.fetchOllamaPrediction("test prompt")
 	if err != nil {
 		t.Fatalf("fetchOllamaPrediction failed: %v", err)
 	}
-
 	if result != "Test prediction" {
 		t.Fatalf("expected 'Test prediction', got %q", result)
 	}
 }
 
-func TestFetchOllamaPredictionError(t *testing.T) {
-	mockHTTPClient := &mocks.MockHTTPClient{
+func TestFetchOllamaPredictionNetworkError(t *testing.T) {
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return nil, errors.New("network error")
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
-
-	_, err := service.fetchOllamaPrediction("test prompt")
+	svc := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTP)
+	_, err := svc.fetchOllamaPrediction("test prompt")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
+func TestFetchOllamaPredictionNotConfigured(t *testing.T) {
+	svc := NewAstrologyServiceWithClient(nil, "", "", nil)
+	_, err := svc.fetchOllamaPrediction("test prompt")
+	if err == nil {
+		t.Fatal("expected error when ollama not configured")
+	}
+}
+
 func TestGetRemedies(t *testing.T) {
 	chart := &database.BirthChart{
-		ID:         uuid.New(),
-		UserID:     uuid.New(),
-		SunSign:    constants.Aries,
-		MoonSign:   constants.Leo,
-		RisingSign: constants.Sagittarius,
-		Planets:    `{"sun": {"sign": "Aries", "degree": "15°23'"}}`,
-		Houses:     `{"1": "0° Aries"}`,
-		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "trine"}]`,
+		ID: uuid.New(), UserID: uuid.New(),
+		SunSign: constants.Aries, MoonSign: constants.Leo, RisingSign: constants.Sagittarius,
+		Planets: `[]`, Houses: `[]`, Aspects: `[]`,
 	}
-
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: constants.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized remedies based on your Aries sun sign..."}`))),
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized remedies for Aries..."}`))),
 			}, nil
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
-
-	remedies, err := service.GetRemedies(chart)
+	svc := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTP)
+	remedies, err := svc.GetRemedies(ctx, chart)
 	if err != nil {
 		t.Fatalf("GetRemedies failed: %v", err)
 	}
-
 	if remedies["chart_id"] != chart.ID {
-		t.Fatalf("expected chart_id %v, got %v", chart.ID, remedies["chart_id"])
+		t.Fatalf("chart_id mismatch")
 	}
-
 	if remedies["sun_sign"] != constants.Aries {
-		t.Fatalf("expected sun_sign %s, got %v", constants.Aries, remedies["sun_sign"])
+		t.Fatalf("sun_sign mismatch")
 	}
-
 	if remedies["remedies"].(string) == "" {
 		t.Fatal("expected non-empty remedies")
 	}
 }
 
+func TestGetRemediesFallback(t *testing.T) {
+	chart := &database.BirthChart{
+		ID: uuid.New(), UserID: uuid.New(),
+		SunSign: constants.Aries, MoonSign: constants.Leo, RisingSign: constants.Sagittarius,
+	}
+	mockHTTP := &mocks.MockHTTPClient{
+		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
+			return nil, errors.New("network error")
+		},
+	}
+	svc := NewAstrologyServiceWithClient(nil, "", "", mockHTTP)
+	remedies, err := svc.GetRemedies(ctx, chart)
+	if err != nil {
+		t.Fatalf("GetRemedies failed: %v", err)
+	}
+	text := remedies["remedies"].(string)
+	if text == "" {
+		t.Fatal("expected non-empty fallback remedies")
+	}
+	if !strings.Contains(text, "Aries") {
+		t.Fatal("expected fallback to mention sun sign")
+	}
+}
+
 func TestGeneratePersonalizedHoroscopeWithMock(t *testing.T) {
 	chart := &database.BirthChart{
-		ID:         uuid.New(),
-		UserID:     uuid.New(),
-		SunSign:    constants.Gemini,
-		MoonSign:   constants.Aries,
-		RisingSign: constants.Leo,
-		Planets:    `{"sun": {"sign": "Gemini", "degree": "12°10'"}}`,
-		Houses:     `{"1": "10° Gemini"}`,
-		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "sextile"}]`,
+		ID: uuid.New(), UserID: uuid.New(),
+		SunSign: constants.Gemini, MoonSign: constants.Aries, RisingSign: constants.Leo,
+		Planets: `[]`,
 	}
-
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: constants.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized horoscope focused on growth and clarity."}`))),
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"output": "Personalized horoscope focused on growth."}`))),
 			}, nil
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTPClient)
-
-	result, err := service.GeneratePersonalizedHoroscope(chart, PersonalizationPreferences{
-		Goals:      "Build confidence and improve career focus",
+	svc := NewAstrologyServiceWithClient(nil, "http://localhost:11434", "llama2", mockHTTP)
+	result, err := svc.GeneratePersonalizedHoroscope(ctx, chart, ports.PersonalizationPreferences{
+		Goals:      "Build confidence",
 		FocusAreas: []string{"career", "relationships"},
 		Tone:       "motivating",
 	})
 	if err != nil {
 		t.Fatalf("GeneratePersonalizedHoroscope failed: %v", err)
 	}
-
 	if result["chart_id"] != chart.ID {
-		t.Fatalf("expected chart_id %v, got %v", chart.ID, result["chart_id"])
+		t.Fatalf("chart_id mismatch")
 	}
-
-	if result["personalized_horoscope"].(string) != "Personalized horoscope focused on growth and clarity." {
-		t.Fatalf("expected AI horoscope text, got %v", result["personalized_horoscope"])
+	if result["personalized_horoscope"].(string) != "Personalized horoscope focused on growth." {
+		t.Fatalf("unexpected horoscope text: %v", result["personalized_horoscope"])
 	}
 }
 
 func TestGeneratePersonalizedHoroscopeFallback(t *testing.T) {
 	chart := &database.BirthChart{
-		ID:         uuid.New(),
-		UserID:     uuid.New(),
-		SunSign:    constants.Pisces,
-		MoonSign:   constants.Cancer,
-		RisingSign: constants.Scorpio,
-		Planets:    `{"sun": {"sign": "Pisces", "degree": "05°20'"}}`,
-		Houses:     `{"1": "25° Pisces"}`,
-		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "conjunction"}]`,
+		ID: uuid.New(), UserID: uuid.New(),
+		SunSign: constants.Pisces, MoonSign: constants.Cancer, RisingSign: constants.Scorpio,
 	}
-
-	mockHTTPClient := &mocks.MockHTTPClient{
+	mockHTTP := &mocks.MockHTTPClient{
 		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
 			return nil, errors.New("network error")
 		},
 	}
-
-	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
-
-	result, err := service.GeneratePersonalizedHoroscope(chart, PersonalizationPreferences{
-		Goals:      "Find balance and deepen intuition",
-		FocusAreas: []string{"spirituality", "wellness"},
-		Tone:       "gentle",
+	svc := NewAstrologyServiceWithClient(nil, "", "", mockHTTP)
+	result, err := svc.GeneratePersonalizedHoroscope(ctx, chart, ports.PersonalizationPreferences{
+		Goals: "Find balance",
+		Tone:  "gentle",
 	})
 	if err != nil {
 		t.Fatalf("GeneratePersonalizedHoroscope failed: %v", err)
 	}
-
 	if result["personalized_horoscope"].(string) == "" {
-		t.Fatal("expected fallback horoscope text")
+		t.Fatal("expected non-empty fallback horoscope")
 	}
 }
 
-func TestGetRemediesFallback(t *testing.T) {
-	chart := &database.BirthChart{
-		ID:         uuid.New(),
-		UserID:     uuid.New(),
-		SunSign:    constants.Aries,
-		MoonSign:   constants.Leo,
-		RisingSign: constants.Sagittarius,
-		Planets:    `{"sun": {"sign": "Aries", "degree": "15°23'"}}`,
-		Houses:     `{"1": "0° Aries"}`,
-		Aspects:    `[{"planet1": "sun", "planet2": "moon", "aspect": "trine"}]`,
+func TestJulianDayKnownValue(t *testing.T) {
+	// J2000.0 epoch: 2000-01-01 12:00:00 UTC = JD 2451545.0
+	j2000 := time.Date(2000, 1, 1, 12, 0, 0, 0, time.UTC)
+	jd := julianDay(j2000)
+	if jd < 2451544.9 || jd > 2451545.1 {
+		t.Fatalf("julianDay(J2000) = %.4f, want ~2451545.0", jd)
+	}
+}
+
+func TestNakshatraCalculation(t *testing.T) {
+	// Moon at 0° = Ashwini pada 1
+	name, pada := calculateNakshatra(0)
+	if name != "Ashwini" {
+		t.Fatalf("expected Ashwini at 0°, got %s", name)
+	}
+	if pada != 1 {
+		t.Fatalf("expected pada 1, got %d", pada)
 	}
 
-	mockHTTPClient := &mocks.MockHTTPClient{
-		PostFunc: func(url, contentType string, body io.Reader) (*http.Response, error) {
-			return nil, errors.New("network error")
-		},
-	}
-
-	service := NewAstrologyServiceWithClient(nil, "", "", mockHTTPClient)
-
-	remedies, err := service.GetRemedies(chart)
-	if err != nil {
-		t.Fatalf("GetRemedies failed: %v", err)
-	}
-
-	if remedies["remedies"].(string) == "" {
-		t.Fatal("expected non-empty fallback remedies")
-	}
-
-	// Check that fallback contains the sun sign
-	remediesText := remedies["remedies"].(string)
-	if !strings.Contains(remediesText, "Aries") {
-		t.Fatal("expected fallback remedies to contain sun sign")
+	// Moon at 360° - epsilon = Revati
+	name, _ = calculateNakshatra(359.9)
+	if name != "Revati" {
+		t.Fatalf("expected Revati at 359.9°, got %s", name)
 	}
 }
