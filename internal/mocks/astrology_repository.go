@@ -5,7 +5,8 @@ import (
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
 )
 
-// MockAstrologyRepository is a mock implementation of interfaces.AstrologyRepositoryInterface.
+// MockAstrologyRepository is a test double for ports.AstrologyRepository.
+// Set any Func field to override the default no-op behaviour for that method.
 type MockAstrologyRepository struct {
 	CreateBirthChartFunc       func(chart *database.BirthChart) error
 	GetBirthChartFunc          func(id uuid.UUID) (*database.BirthChart, error)
@@ -52,12 +53,10 @@ func (m *MockAstrologyRepository) GetHoroscope(sign, horoscopeType string) (*dat
 	return nil, nil
 }
 
-// GetOrCreateHoroscope atomically returns or creates a horoscope.
 func (m *MockAstrologyRepository) GetOrCreateHoroscope(h *database.Horoscope) (*database.Horoscope, error) {
 	if m.GetOrCreateHoroscopeFunc != nil {
 		return m.GetOrCreateHoroscopeFunc(h)
 	}
-	// Default: assign a new ID and return the candidate as-is.
 	if h.ID == uuid.Nil {
 		h.ID = uuid.New()
 	}
