@@ -18,7 +18,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import transformers
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -26,7 +25,6 @@ from transformers import (
     BitsAndBytesConfig
 )
 from peft import PeftModel
-import datasets
 from datasets import Dataset
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
