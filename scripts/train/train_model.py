@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-import transformers
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -25,7 +24,6 @@ from transformers import (
     EarlyStoppingCallback
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-import datasets
 from datasets import Dataset
 
 # Setup logging
