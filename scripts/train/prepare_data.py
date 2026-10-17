@@ -170,55 +170,6 @@ class AstrologyDataPreparer:
 
         return df
 
-    def _apply_vedic_quality_filters(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply Vedic astrology specific quality filters."""
-        vedic_config = self.config['vedic_astrology']
-        quality_filters = vedic_config.get('quality_filters', {})
-
-        # First, identify Vedic data (data that has vedic_terms or text field indicating Vedic content)
-        vedic_mask = df.apply(lambda row: 'vedic_terms' in row or
-                                         (row.get('text', '').startswith(('brihat_', 'phala', 'jataka'))), axis=1)
-
-        # Apply Vedic-specific input length filter only to Vedic data
-        vedic_min_input = quality_filters.get('min_input_length')
-        if vedic_min_input is not None:
-            vedic_df = df[vedic_mask]
-            non_vedic_df = df[~vedic_mask]
-
-            # Apply different input length requirements
-            vedic_df = vedic_df[vedic_df['input'].str.len() >= vedic_min_input]
-            non_vedic_df = non_vedic_df[non_vedic_df['input'].str.len() >= self.config['data']['filters']['min_input_length']]
-
-            df = pd.concat([vedic_df, non_vedic_df], ignore_index=True)
-            logger.info(f"Applied Vedic input length filter ({vedic_min_input}): {len(df)} records remaining")
-
-        # Filter by Sanskrit terms (only for Vedic data)
-        if quality_filters.get('sanskrit_terms_required', 0) > 0:
-            sanskrit_terms = quality_filters.get('sanskrit_terms', [])
-            min_terms = quality_filters['sanskrit_terms_required']
-
-            def has_sanskrit_terms(row):
-                text = str(row.get('output', ''))
-                vedic_terms = row.get('vedic_terms', [])
-                all_text = text + ' ' + ' '.join(vedic_terms)
-                found_terms = sum(1 for term in sanskrit_terms if term.lower() in all_text.lower())
-                return found_terms >= min_terms
-
-            vedic_df = df[vedic_mask]
-            vedic_df = vedic_df[vedic_df.apply(has_sanskrit_terms, axis=1)]
-            df = pd.concat([vedic_df, df[~vedic_mask]], ignore_index=True)
-            logger.info(f"Applied Sanskrit terms filter: {len(df)} records remaining")
-
-        # Filter by classical text references (only for Vedic data)
-        if quality_filters.get('classical_references_required', False):
-            allowed_texts = quality_filters.get('allowed_texts', [])
-            vedic_df = df[vedic_mask]
-            vedic_df = vedic_df[vedic_df['text'].isin(allowed_texts)]
-            df = pd.concat([vedic_df, df[~vedic_mask]], ignore_index=True)
-            logger.info(f"Applied classical text filter: {len(df)} records remaining")
-
-        return df
-
     def format_for_training(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
         """Format data for model training."""
         logger.info("Formatting data for training...")
