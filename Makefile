@@ -123,7 +123,6 @@ train-ollama: ## Create Ollama model from trained checkpoint
 train-full: ## Run complete training pipeline
 	@echo "Running complete training pipeline..."
 	cd scripts/train && ./train.sh full-pipeline
-	go install github.com/cosmtrek/air@latest
 
 # CI/CD commands
 ci: check ## Run CI pipeline locally
@@ -137,18 +136,3 @@ dev: ## Start development server with hot reload (requires air)
 prod-build: clean deps ## Build for production
 	CGO_ENABLED=0 GOOS=linux go build -a -trimpath -ldflags="-s -w" -o bin/astrology-ai ./cmd/
 
-# Help for specific targets
-help-test: ## Show testing help
-	@echo "Testing commands:"
-	@echo "  make test              - Run all tests"
-	@echo "  make test-unit         - Run unit tests only"
-	@echo "  make test-integration  - Run integration tests only"
-	@echo "  make test-e2e          - Run end-to-end tests only"
-	@echo "  make test-coverage     - Run tests with coverage report"
-
-help-docker: ## Show Docker help
-	@echo "Docker commands:"
-	@echo "  make docker-build      - Build Docker image"
-	@echo "  make docker-run        - Run Docker container"
-	@echo "  make docker-compose-up - Start services with docker-compose"
-	@echo "  make docker-compose-down - Stop services with docker-compose"
