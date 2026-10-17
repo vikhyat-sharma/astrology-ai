@@ -319,23 +319,11 @@ fi
         logger.info("Starting Ollama model creation...")
 
         try:
-            # Create Modelfile
             modelfile_path = self.create_modelfile()
-
-            # Create metadata
             metadata = self.create_model_metadata()
-
-            # Copy model files
             self.copy_model_files()
-
-            # Create README
             self.create_readme(metadata)
-
-            # Create installation script
             self.create_install_script()
-
-            # Create archive
-            archive_path = self.create_archive()
 
             logger.info("Ollama model creation completed successfully!")
             logger.info(f"Model files are ready in: {self.output_dir}")
@@ -344,8 +332,7 @@ fi
             return {
                 "model_dir": str(self.output_dir),
                 "modelfile": modelfile_path,
-                "archive": archive_path,
-                "metadata": metadata
+                "metadata": metadata,
             }
 
         except Exception as e:
@@ -368,8 +355,10 @@ def main():
     print("\nOllama Model Creation Complete!")
     print(f"Model directory: {result['model_dir']}")
     print(f"Modelfile: {result['modelfile']}")
+
     if args.archive:
-        print(f"Archive: {result['archive']}")
+        archive_path = creator.create_archive()
+        print(f"Archive: {archive_path}")
 
     print("\nTo install the model:")
     print(f"  cd {result['model_dir']}")
