@@ -14,28 +14,40 @@ import (
 	"github.com/google/uuid"
 	"github.com/vikhyat-sharma/astrology-ai/internal/constants"
 	"github.com/vikhyat-sharma/astrology-ai/internal/database"
-	"github.com/vikhyat-sharma/astrology-ai/internal/interfaces"
 	"github.com/vikhyat-sharma/astrology-ai/internal/ports"
 	"github.com/vikhyat-sharma/astrology-ai/internal/repositories"
 )
 
 // AstrologyService implements ports.AstrologyService.
 type AstrologyService struct {
-	astrologyRepo        interfaces.AstrologyRepositoryInterface
+	astrologyRepo        ports.AstrologyRepository
 	calculationService   *CalculationService
 	compatibilityService *CompatibilityService
 	dashaService         *DashaService
 	ollamaURL            string
 	ollamaModel          string
-	httpClient           interfaces.HTTPClientInterface
+	httpClient           ports.HTTPClient
 }
 
-// Compile-time assertion that AstrologyService satisfies the port interface.
-var _ interface {
-	CreateBirthChart(ctx context.Context, data ports.BirthChartData) (*database.BirthChart, error)
-} = (*AstrologyService)(nil)
+// NewAstrologyService creates a production AstrologyService wired to real dependencies.
+func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollamaURL, ollamaModel string) *AstrologyService {
+	return NewAstrologyServiceWithClient(astrologyRepo, ollamaURL, ollamaModel, newOllamaHTTPClient())
+}
 
-// newOllamaHTTPClient returns an http.Client with production-grade transport settings.
+// NewAstrologyServiceWithClient creates an AstrologyService with a custom HTTP client (useful for tests).
+func NewAstrologyServiceWithClient(astrologyRepo ports.AstrologyRepository, ollamaURL, ollamaModel string, httpClient ports.HTTPClient) *AstrologyService {
+	return &AstrologyService{
+		astrologyRepo:        astrologyRepo,
+		calculationService:   NewCalculationService(),
+		compatibilityService: NewCompatibilityService(astrologyRepo),
+		dashaService:         NewDashaService(astrologyRepo),
+		ollamaURL:            ollamaURL,
+		ollamaModel:          ollamaModel,
+		httpClient:           httpClient,
+	}
+}
+
+// newOllamaHTTPClient returns an http.Client tuned for Ollama inference calls.
 func newOllamaHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout: time.Duration(constants.OllamaTimeoutSeconds) * time.Second,
@@ -49,40 +61,6 @@ func newOllamaHTTPClient() *http.Client {
 		},
 	}
 }
-
-// NewAstrologyService creates a production AstrologyService.
-func NewAstrologyService(astrologyRepo *repositories.AstrologyRepository, ollamaURL, ollamaModel string) *AstrologyService {
-	return &AstrologyService{
-		astrologyRepo:        astrologyRepo,
-		calculationService:   NewCalculationService(),
-		compatibilityService: NewCompatibilityService(astrologyRepo),
-		dashaService:         NewDashaService(astrologyRepo),
-		ollamaURL:            ollamaURL,
-		ollamaModel:          ollamaModel,
-		httpClient:           newOllamaHTTPClient(),
-	}
-}
-
-// NewAstrologyServiceWithClient creates an AstrologyService with a custom HTTP client (for testing).
-func NewAstrologyServiceWithClient(astrologyRepo interfaces.AstrologyRepositoryInterface, ollamaURL, ollamaModel string, httpClient interfaces.HTTPClientInterface) *AstrologyService {
-	return &AstrologyService{
-		astrologyRepo:        astrologyRepo,
-		calculationService:   NewCalculationService(),
-		compatibilityService: NewCompatibilityService(astrologyRepo),
-		dashaService:         NewDashaService(astrologyRepo),
-		ollamaURL:            ollamaURL,
-		ollamaModel:          ollamaModel,
-		httpClient:           httpClient,
-	}
-}
-
-// PersonalizationPreferences carries optional personalization inputs.
-// Kept here for backward compatibility with existing tests; ports.PersonalizationPreferences
-// is the canonical definition used by handlers.
-type PersonalizationPreferences = ports.PersonalizationPreferences
-
-// BirthChartData is an alias to the canonical ports type.
-type BirthChartData = ports.BirthChartData
 
 // CreateBirthChart calculates and persists a birth chart.
 func (s *AstrologyService) CreateBirthChart(ctx context.Context, data ports.BirthChartData) (*database.BirthChart, error) {
@@ -139,7 +117,7 @@ func (s *AstrologyService) GetUserBirthCharts(ctx context.Context, userID uuid.U
 }
 
 // GetHoroscope returns today's horoscope for a sign, generating and persisting one if absent.
-// Uses GetOrCreateHoroscope to avoid the check-then-insert race condition.
+// Uses GetOrCreateHoroscope to avoid a check-then-insert race condition.
 func (s *AstrologyService) GetHoroscope(ctx context.Context, sign, horoscopeType string) (*database.Horoscope, error) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	candidate := &database.Horoscope{
@@ -154,7 +132,7 @@ func (s *AstrologyService) GetHoroscope(ctx context.Context, sign, horoscopeType
 	return s.astrologyRepo.GetOrCreateHoroscope(candidate)
 }
 
-// GetDailyHoroscope is a convenience wrapper for backward compatibility.
+// GetDailyHoroscope is a convenience wrapper around GetHoroscope for daily type.
 func (s *AstrologyService) GetDailyHoroscope(sign string) (*database.Horoscope, error) {
 	return s.GetHoroscope(context.Background(), sign, constants.HoroscopeTypeDaily)
 }
@@ -181,7 +159,7 @@ func (s *AstrologyService) CheckCompatibility(ctx context.Context, chartID1, cha
 	}, nil
 }
 
-// GetRemedies generates personalized remedies via AI with a deterministic fallback.
+// GetRemedies generates personalized remedies via AI, with a static fallback.
 func (s *AstrologyService) GetRemedies(ctx context.Context, chart *database.BirthChart) (map[string]interface{}, error) {
 	prompt := fmt.Sprintf(`Based on this birth chart, provide personalized astrological remedies:
 
@@ -257,7 +235,7 @@ func (s *AstrologyService) GetCurrentTransits(ctx context.Context, lat, lng floa
 	return result, nil
 }
 
-// fetchOllamaPrediction calls the Ollama /api/predictions endpoint.
+// fetchOllamaPrediction calls the Ollama /api/predictions endpoint and returns the output text.
 func (s *AstrologyService) fetchOllamaPrediction(prompt string) (string, error) {
 	if s.ollamaURL == "" || s.ollamaModel == "" {
 		return "", fmt.Errorf("ollama not configured")
@@ -385,6 +363,7 @@ Daily Practice: Morning affirmations, evening reflection.`,
 		chart.SunSign, element, element)
 }
 
+// getSignElement returns the classical element for a zodiac sign.
 func (s *AstrologyService) getSignElement(sign string) string {
 	elements := map[string]string{
 		"Aries": "fiery", "Leo": "fiery", "Sagittarius": "fiery",
